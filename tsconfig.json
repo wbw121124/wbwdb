@@ -1,0 +1,42 @@
+{
+	"compilerOptions": {
+		"target": "es2020",
+		"module": "NodeNext",
+		"moduleResolution": "NodeNext",
+		"lib": [
+			"es2020"
+		],
+		"rootDir": "src",
+		"outDir": "lib",
+		"strict": true,
+		"alwaysStrict": true,
+		"strictFunctionTypes": true,
+		"strictNullChecks": true,
+		"strictPropertyInitialization": true,
+		"forceConsistentCasingInFileNames": true,
+		"noImplicitAny": true,
+		"noImplicitReturns": true,
+		"noImplicitThis": true,
+		"noFallthroughCasesInSwitch": true,
+		"noUnusedLocals": true,
+		"noUnusedParameters": true,
+		"emitDecoratorMetadata": true,
+		"experimentalDecorators": true,
+		"declaration": true,
+		"pretty": true,
+		"types": [
+			"node"
+		],
+		"esModuleInterop": true,
+		"allowSyntheticDefaultImports": true
+	},
+	"include": [
+		"typings/**/*",
+		"src/**/*"
+	],
+	"exclude": [
+		"node_modules",
+		"lib",
+		"test"
+	]
+}

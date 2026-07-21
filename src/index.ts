@@ -1,0 +1,226 @@
+import * as fs from 'node:fs';
+import * as types from './types.js';
+
+/**
+ * wbwdb 数据库管理器
+ * @public
+ * @example
+ * ```typescript
+ * const db = new wbwdbMannager('./data');
+ * await db.init();
+ * ```
+ * @description
+ * 文件夹结构为
+ * ```
+ * dbroot/
+ *  ├─ index.json                     // 索引表
+ *  ├─ table/(table name)/data.json   // 数据
+ * ```
+ */
+export class wbwdbMannager {
+	/** 数据库路径 */
+	path: string;
+	/** 根目录路径 */
+	rootdir: string | void | null = null;
+	/** 数据表 */
+	dbTables: Map<string, types.DBTable> = new Map();
+	/** 索引数据 */
+	private indexData: { tables: string[] } = { tables: [] };
+
+	/**
+	 * 创建数据库管理器实例
+	 * @param path - 数据库存储路径
+	 */
+	constructor(path: string) {
+		this.path = path;
+	}
+
+	/**
+	 * 初始化（加载）数据库
+	 * @returns Promise<void>
+	 * @throws {Error} 当创建目录失败时抛出错误
+	 * @public
+	 */
+	init = async (): Promise<void> => {
+		try {
+			const rootPath = this.path + '/dbroot';
+			await fs.promises.mkdir(rootPath, { recursive: true }).catch((err) => {
+				if (err.code !== 'EEXIST') {
+					throw err;
+				}
+			});
+			this.rootdir = rootPath;
+
+			// 读取或创建索引文件 index.json
+			const indexPath = rootPath + '/index.json';
+			try {
+				const indexContent = await fs.promises.readFile(indexPath, 'utf-8');
+				this.indexData = JSON.parse(indexContent);
+				// 加载所有已存在的表
+				for (const tableName of this.indexData.tables) {
+					await this.loadTable(tableName);
+				}
+			} catch (err: any) {
+				if (err.code === 'ENOENT') {
+					// 文件不存在，创建默认索引
+					this.indexData = { tables: [] };
+					await this.saveIndex();
+				} else {
+					throw err;
+				}
+			}
+		} catch (e) {
+			throw e;
+		}
+	}
+
+	/**
+	 * 加载指定的数据表
+	 * @param tableName - 表名
+	 * @private
+	 */
+	private async loadTable(tableName: string): Promise<void> {
+		const tablePath = `${this.rootdir}/table/${tableName}/data.json`;
+		try {
+			const content = await fs.promises.readFile(tablePath, 'utf-8');
+			const table = types.importDBTableFromString(content);
+			this.dbTables.set(tableName, table);
+		} catch (err: any) {
+			if (err.code !== 'ENOENT') {
+				throw err;
+			}
+		}
+	}
+
+	/**
+	 * 保存索引文件
+	 * @private
+	 */
+	private async saveIndex(): Promise<void> {
+		const indexPath = `${this.rootdir}/index.json`;
+		await fs.promises.writeFile(indexPath, JSON.stringify(this.indexData, null, 2), 'utf-8');
+	}
+
+	/**
+	 * 创建新表
+	 * @param name - 表名
+	 * @param schema - 表结构
+	 * @returns 创建的表实例
+	 * @public
+	 */
+	async createTable(name: string, schema: types.DBSchema): Promise<types.DBTable> {
+		if (this.dbTables.has(name)) {
+			throw new Error(`表 "${name}" 已存在`);
+		}
+
+		const table = new types.DBTable(name, schema, 0);
+		this.dbTables.set(name, table);
+
+		// 更新索引
+		if (!this.indexData.tables.includes(name)) {
+			this.indexData.tables.push(name);
+			await this.saveIndex();
+		}
+
+		// 创建表数据目录和文件
+		const tableDir = `${this.rootdir}/table/${name}`;
+		await fs.promises.mkdir(tableDir, { recursive: true });
+		await this.saveTable(name);
+
+		return table;
+	}
+
+	/**
+	 * 保存指定的表
+	 * @param name - 表名
+	 * @private
+	 */
+	private async saveTable(name: string): Promise<void> {
+		const table = this.dbTables.get(name);
+		if (!table) {
+			throw new Error(`表 "${name}" 不存在`);
+		}
+
+		const tablePath = `${this.rootdir}/table/${name}/data.json`;
+		await fs.promises.writeFile(tablePath, table.toString(), 'utf-8');
+	}
+
+	/**
+	 * 保存数据库
+	 * @returns Promise<void>
+	 * @public
+	 */
+	async save(): Promise<void> {
+		// 保存所有表
+		for (const [name] of this.dbTables) {
+			await this.saveTable(name);
+		}
+		// 保存索引
+		await this.saveIndex();
+	}
+
+	/**
+	 * 刷新数据库（重新从磁盘加载）
+	 * @returns Promise<void>
+	 * @public
+	 */
+	async refresh(): Promise<void> {
+		// 清空内存中的表
+		this.dbTables.clear();
+
+		// 重新加载索引
+		const indexPath = `${this.rootdir}/index.json`;
+		try {
+			const indexContent = await fs.promises.readFile(indexPath, 'utf-8');
+			this.indexData = JSON.parse(indexContent);
+			// 加载所有表
+			for (const tableName of this.indexData.tables) {
+				await this.loadTable(tableName);
+			}
+		} catch (err: any) {
+			if (err.code !== 'ENOENT') {
+				throw err;
+			}
+		}
+	}
+
+	/**
+	 * 获取表
+	 * @param name - 表名
+	 * @returns 表实例或 undefined
+	 * @public
+	 */
+	getTable(name: string): types.DBTable | undefined {
+		return this.dbTables.get(name);
+	}
+
+	/**
+	 * 删除表
+	 * @param name - 表名
+	 * @returns Promise<void>
+	 * @public
+	 */
+	async dropTable(name: string): Promise<void> {
+		if (!this.dbTables.has(name)) {
+			throw new Error(`表 "${name}" 不存在`);
+		}
+
+		this.dbTables.delete(name);
+
+		// 更新索引
+		this.indexData.tables = this.indexData.tables.filter(t => t !== name);
+		await this.saveIndex();
+
+		// 删除表数据文件
+		const tablePath = `${this.rootdir}/table/${name}`;
+		try {
+			await fs.promises.rm(tablePath, { recursive: true, force: true });
+		} catch (err: any) {
+			if (err.code !== 'ENOENT') {
+				throw err;
+			}
+		}
+	}
+};
+
+export * from './types.js';
