@@ -314,42 +314,30 @@ class DBFullType<T> {
 }
 
 class DBSchema {
-	map: Map<string, DBFullType<any>>;
-	constructor(v: Map<string, DBFullType<any>> | Map<string, string>) {
-		function isDBFullTypeMap(map: Map<string, any>): map is Map<string, DBFullType<any>> {
-			if (map.size === 0) return false; // 空Map无法判断
-
-			const firstValue = map.values().next().value;
-			// 检查是否为DBFullType实例或其结构特征
-			return firstValue instanceof DBFullType ||
-				(firstValue && typeof firstValue === 'object' &&
-					't' in firstValue && 'nullable' in firstValue && 'deafult' in firstValue);
-		}
-		if (isDBFullTypeMap(v)) {
-			this.map = v;
-		} else {
-			// 将 Map<string,string> 转换为 Map<string, DBFullType<any>>
-			this.map = new Map<string, DBFullType<any>>();
-			for (const [key, value] of v.entries()) {
-				// 需要根据字符串值找到对应的DBType
-				const dbType = dbtypes.get(value);
-				if (dbType) {
-					this.map.set(key, new DBFullType(dbType, false));
-				} else {
-					// 处理未知类型，默认使用String
-					const stringType = dbtypes.get('String');
-					if (stringType) {
-						this.map.set(key, new DBFullType(stringType, false));
-					}
-				}
-			}
-		}
-	};
+	constructor(public map: Map<string, DBFullType<any>>) { }
 	toString() {
 		let a = [];
 		for (const [key, value] of this.map.entries())
 			a.push(`"${key}":"${value.t.name}"`);
 		return `{${a.join(',')}}`
+	}
+	static fromStrMap(v: Map<string, string>): DBSchema {
+		// 将 Map<string,string> 转换为 Map<string, DBFullType<any>>
+		let map = new Map<string, DBFullType<any>>();
+		for (const [key, value] of v.entries()) {
+			// 需要根据字符串值找到对应的DBType
+			const dbType = dbtypes.get(value);
+			if (dbType) {
+				map.set(key, new DBFullType(dbType, false));
+			} else {
+				// 处理未知类型，默认使用String
+				const stringType = dbtypes.get('String');
+				if (stringType) {
+					map.set(key, new DBFullType(stringType, false));
+				}
+			}
+		}
+		return new DBSchema(map);
 	}
 }
 
@@ -374,9 +362,10 @@ class DBRow {
 			} else {
 				// 统一类型
 				try {
-					this.row.set(name,
-						t.t.fromStr(this.row.get(name).toString())
-					);
+					if (this.row.get(name) !== null || !t.nullable)
+						this.row.set(name,
+							t.t.fromStr(this.row.get(name).toString())
+						);
 				} catch (e) {
 					if (typeof t.deafult === "function")
 						this.row.set(name, t.deafult());
@@ -468,7 +457,7 @@ class DBTable {
 
 function importDBTableFromString(str: string) {
 	let a = JSON.parse(str);
-	return new DBTable(a.name, a.schema, a.cnt, (a.rows as Array<any>).map((e) => DBRowWithID.fromJSON(e)));
+	return new DBTable(a.name, DBSchema.fromStrMap(new Map<string, string>(Object.entries(a.schema))), a.cnt, (a.rows as Array<any>).map((e) => DBRowWithID.fromJSON(e)));
 }
 
 // 导出类型定义
