@@ -1,2 +1,1 @@
-
-# Typescript module
+懒得交到 npm 上，就这样吧
