@@ -1,6 +1,8 @@
 import * as fs from 'node:fs';
 import * as types from './types.js';
 import { WBWDBSQL, type QueryResult } from './sql/index.js';
+import { Auth } from './auth/index.js';
+import type { AuthOptions } from './auth/types.js';
 
 /**
  * wbwdb 数据库管理器
@@ -29,6 +31,8 @@ export class wbwdbManager {
 	private indexData: { tables: string[] } = { tables: [] };
 	/** SQL 引擎 */
 	private sql: WBWDBSQL | null = null;
+	/** Auth 认证模块 */
+	auth: Auth | null = null;
 
 	/**
 	 * 创建数据库管理器实例
@@ -36,6 +40,20 @@ export class wbwdbManager {
 	 */
 	constructor(path: string) {
 		this.path = path;
+	}
+
+	/**
+	 * 初始化 Auth 认证模块
+	 * @param options - Auth 配置选项
+	 * @returns Auth 实例
+	 */
+	async initAuth(options?: AuthOptions): Promise<Auth> {
+		if (!this.rootdir) {
+			throw new Error('Database not initialized. Call init() first.');
+		}
+		this.auth = new Auth(this, options);
+		await this.auth.init();
+		return this.auth;
 	}
 
 	/**
@@ -259,3 +277,11 @@ export class wbwdbManager {
 export * from './types.js';
 export { WBWDBSQL, Parser, SQLExecutor, TableStore } from './sql/index.js';
 export type { QueryResult, Row, SQLNode } from './sql/index.js';
+export { Auth } from './auth/index.js';
+export type {
+	AuthOptions, User, RegisterInput, AuthResult,
+	TokenOptions, TokenPayload, SessionResult, SessionOptions, SessionPayload,
+	Role, RoleInput, ApiKey, ApiKeyOptions, ApiKeyResult, ApiKeyValidation,
+	OAuthProvider, OAuthConfig, OAuthUrlResult, OAuthUserInfo,
+	AuthContext,
+} from './auth/types.js';

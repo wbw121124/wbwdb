@@ -58,6 +58,16 @@ export class WBWDBSQL {
 		return this.executor.execute(ast, params);
 	}
 
+	/** Set auth context for RLS integration */
+	setAuthContext(ctx: { userId: string; username: string; roles: string[]; permissions: string[] } | null): void {
+		this.executor.setAuthContext(ctx);
+	}
+
+	/** Get current auth context */
+	getAuthContext(): { userId: string; username: string; roles: string[]; permissions: string[] } | null {
+		return this.executor.getAuthContext();
+	}
+
 	tables(): string[] {
 		return this.executor.getTables();
 	}

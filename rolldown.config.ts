@@ -14,6 +14,7 @@ export default defineConfig({
 		},
 		minify: true,
 	},
+	external: ['bcrypt', 'jsonwebtoken'],
 	plugins: [
 		dts()
 	],

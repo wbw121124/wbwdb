@@ -63,6 +63,7 @@ export class SQLExecutor {
 	private transactions: Map<string, TableStore>[] = [];
 	private currentRole: string = 'public';
 	private superUser = true;
+	private authContext: { userId: string; username: string; roles: string[]; permissions: string[] } | null = null;
 
 	constructor(existingTables?: Map<string, Row[]>) {
 		// Sync existing tables into memory
@@ -76,6 +77,23 @@ export class SQLExecutor {
 				this.tables.set(name, store);
 			}
 		}
+	}
+
+	/** Set auth context from Auth module */
+	setAuthContext(ctx: { userId: string; username: string; roles: string[]; permissions: string[] } | null): void {
+		this.authContext = ctx;
+		if (ctx) {
+			this.currentRole = ctx.username;
+			this.superUser = false;
+		} else {
+			this.currentRole = 'public';
+			this.superUser = true;
+		}
+	}
+
+	/** Get auth context */
+	getAuthContext(): { userId: string; username: string; roles: string[]; permissions: string[] } | null {
+		return this.authContext;
 	}
 
 	/** Execute a parsed SQL statement */
@@ -210,6 +228,10 @@ export class SQLExecutor {
 		if (from.subquery) {
 			const result = this.execSelect(from.subquery, params);
 			return result.rows;
+		}
+		// Handle SELECT without FROM (e.g., SELECT 1+1)
+		if (!from.table) {
+			return [{}];
 		}
 		const store = this.getTable(from.table);
 		const alias = from.alias || from.table;
@@ -907,8 +929,13 @@ export class SQLExecutor {
 					case 'REPLACE': return String(args[0]).replaceAll(String(args[1]), String(args[2]));
 					case 'CONCAT': return args.map(String).join('');
 					case 'NOW': case 'CURRENT_TIMESTAMP': return new Date().toISOString();
-					case 'CURRENT_USER': return this.currentRole;
-					case 'SESSION_USER': return this.currentRole;
+					case 'CURRENT_USER': return this.authContext?.username || this.currentRole;
+					case 'SESSION_USER': return this.authContext?.username || this.currentRole;
+					case 'AUTH_USER_ID': return this.authContext?.userId || null;
+					case 'AUTH_USERNAME': return this.authContext?.username || null;
+					case 'AUTH_ROLES': return this.authContext?.roles || [];
+					case 'AUTH_PERMISSIONS': return this.authContext?.permissions || [];
+					case 'IS_AUTHENTICATED': return this.authContext !== null;
 					case 'EXTRACT': return this.evalExtract(args);
 					case 'GREATEST': return Math.max(...args.map(Number));
 					case 'LEAST': return Math.min(...args.map(Number));

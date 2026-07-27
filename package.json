@@ -11,6 +11,8 @@
 	"private": false,
 	"dependencies": {
 		"@typescript/native": "npm:typescript@^7.0.2",
+		"bcrypt": "^6.0.0",
+		"jsonwebtoken": "^9.0.3",
 		"uuid": "^14.0.1"
 	},
 	"files": [
@@ -25,10 +27,12 @@
 		"lint": "eslint src/",
 		"doc": "rimraf docs && typedoc",
 		"dev": "npm run doc && npm run build && npm run test",
-		"test": "node --experimental-strip-types test/demo.ts"
+		"test": "node --experimental-strip-types test/demo.ts && node --experimental-strip-types test/auth-demo.ts"
 	},
 	"devDependencies": {
 		"@eslint/js": "^10.0.1",
+		"@types/bcrypt": "^6.0.0",
+		"@types/jsonwebtoken": "^9.0.10",
 		"@types/node": "^26.1.1",
 		"eslint": "^10.8.0",
 		"rimraf": "^6.1.3",

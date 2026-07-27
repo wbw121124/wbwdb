@@ -932,6 +932,22 @@ export class Parser {
 			return { type: 'LITERAL', value: new Date().toISOString(), dataType: 'STRING' };
 		}
 
+		// Auth functions (no parentheses required)
+		if (this.is('KEYWORD') && (
+			this.peek().value === 'AUTH_USER_ID' ||
+			this.peek().value === 'AUTH_USERNAME' ||
+			this.peek().value === 'AUTH_ROLES' ||
+			this.peek().value === 'AUTH_PERMISSIONS' ||
+			this.peek().value === 'IS_AUTHENTICATED' ||
+			this.peek().value === 'CURRENT_USER' ||
+			this.peek().value === 'SESSION_USER'
+		)) {
+			const funcName = this.advance().value;
+			if (this.is('LPAREN')) this.advance();
+			if (this.is('RPAREN')) this.advance();
+			return { type: 'FUNC_CALL', name: funcName, args: [], distinct: false };
+		}
+
 		// Parameter $1, $2, etc.
 		if (this.is('IDENT') && this.peek().value.startsWith('$')) {
 			const idx = parseInt(this.peek().value.slice(1), 10);
