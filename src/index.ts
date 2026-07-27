@@ -158,7 +158,9 @@ export class wbwdbManager {
 			throw new Error(`表 "${name}" 不存在`);
 		}
 
-		const tablePath = `${this.rootdir}/table/${name}/data.json`;
+		const tableDir = `${this.rootdir}/table/${name}`;
+		await fs.promises.mkdir(tableDir, { recursive: true });
+		const tablePath = `${tableDir}/data.json`;
 		await fs.promises.writeFile(tablePath, table.toString(), 'utf-8');
 	}
 

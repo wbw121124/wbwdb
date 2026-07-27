@@ -2,3 +2,4 @@ node_modules/
 demo_data/
 lib/
 .npmrc
+rust/target/

@@ -13,7 +13,11 @@
 		"@typescript/native": "npm:typescript@^7.0.2",
 		"bcrypt": "^6.0.0",
 		"jsonwebtoken": "^9.0.3",
-		"uuid": "^14.0.1"
+		"uuid": "^14.0.1",
+		"wbw-cli-tools-lib": "^1.0.0"
+	},
+	"bin": {
+		"wbwdb": "./bin/wbwdb-cli.js"
 	},
 	"files": [
 		"./bin/*",
