@@ -9,9 +9,9 @@ interface DBType<T = any> {
 	/** 类型名称 */
 	name: string;
 	/** 将值转换为数据库存储对象的函数 */
-	toObj: (value: T) => object;   // 可能要废了
+	toObj: (value: T) => object;
 	/** 从数据库存储对象还原为原始值的函数 */
-	fromObj: (value: object) => T; // 可能要废了
+	fromObj: (value: object) => T;
 	/** 转 string */
 	toStr: (value: T) => string;
 	/** string 转 T */
@@ -104,6 +104,28 @@ class Email {
 }
 
 
+function escapeJsonString(str: string): string {
+	const result = str
+		.replace(/\\/g, '\\\\')
+		.replace(/"/g, '\\"')
+		.replace(/\n/g, '\\n')
+		.replace(/\r/g, '\\r')
+		.replace(/\t/g, '\\t')
+		.replace(/\b/g, '\\b')
+		.replace(/\f/g, '\\f');
+	// Escape remaining control characters (U+0000 to U+001F)
+	let out = '';
+	for (let i = 0; i < result.length; i++) {
+		const code = result.charCodeAt(i);
+		if (code < 0x20) {
+			out += code < 16 ? `\\u000${code.toString(16)}` : `\\u00${code.toString(16)}`;
+		} else {
+			out += result[i];
+		}
+	}
+	return out;
+}
+
 function isToStringable(value: unknown): value is { toString(): string } {
 	return value !== null &&
 		value !== undefined &&
@@ -125,27 +147,28 @@ function isToStringable(value: unknown): value is { toString(): string } {
 function dbtypeMaker<T>(name: string, defaultValue?: T): DBTypeDef<T> {
 	return new DBTypeDef<T>(
 		name,
-		(value: T): Object => {
+		(value: T): object => {
 			// 对于基本类型，包装为对象；对于对象类型，直接返回
 			return typeof value === 'object' && value !== null
-				? value as Object
+				? value as object
 				: Object(value);
 		},
-		(value: Object): T => {
+		(value: object): T => {
 			// 从数据库对象还原为原始类型
 			return value as T;
 		},
 		(value: T): string => {
 			return isToStringable(value) ? (value as any).toString() :
 				(typeof value === 'object' && value !== null
-					? value as Object
+					? value as object
 					: Object(value)).toString();
 		},
 		(value: string): T => {
 			return value as T;
 		},
-		(): T => {
-			return defaultValue !== undefined ? defaultValue : null as T;
+		(_nullable?: boolean): T => {
+			if (defaultValue !== undefined) return defaultValue;
+			return null as T;
 		}
 	);
 }
@@ -296,8 +319,8 @@ export const dbtypes: Map<string, DBType> = new Map();
  * addType<UUID>('UUID');
  * ```
  */
-export function addType<T>(name: string, deafultVal?: T): void {
-	dbtypes.set(name, dbtypeMaker<T>(name, deafultVal));
+export function addType<T>(name: string, defaultVal?: T): void {
+	dbtypes.set(name, dbtypeMaker<T>(name, defaultVal));
 }
 
 // 注册内置类型
@@ -310,20 +333,20 @@ addType<Phone>('Phone', new Phone("+86-12345678901"));
 addType<UUID>('UUID', new UUID());
 
 class DBFullType<T> {
-	constructor(public t: DBType<T>, public nullable: boolean, public deafult: Function | T | null = nullable ? null : t.newVal()) { }
+	constructor(public t: DBType<T>, public nullable: boolean, public defaultVal: (() => T) | T | null = nullable ? null : t.newVal()) { }
 }
 
 class DBSchema {
 	constructor(public map: Map<string, DBFullType<any>>) { }
 	toString() {
-		let a = [];
+		const a = [];
 		for (const [key, value] of this.map.entries())
-			a.push(`"${key}":"${value.t.name}"`);
+			a.push(`"${escapeJsonString(key)}":"${escapeJsonString(value.t.name)}"`);
 		return `{${a.join(',')}}`
 	}
 	static fromStrMap(v: Map<string, string>): DBSchema {
 		// 将 Map<string,string> 转换为 Map<string, DBFullType<any>>
-		let map = new Map<string, DBFullType<any>>();
+		const map = new Map<string, DBFullType<any>>();
 		for (const [key, value] of v.entries()) {
 			// 需要根据字符串值找到对应的DBType
 			const dbType = dbtypes.get(value);
@@ -352,29 +375,27 @@ class DBRow {
 		return new DBRow(map);
 	}
 	updateT(schema: DBSchema) {
-		// 强制统一
 		for (const [name, t] of schema.map.entries()) {
 			if (!this.row.has(name)) {
-				if (typeof t.deafult === "function")
-					this.row.set(name, t.deafult());
+				if (typeof t.defaultVal === "function")
+					this.row.set(name, t.defaultVal());
 				else
-					this.row.set(name, t.deafult);
+					this.row.set(name, t.defaultVal);
 			} else {
-				// 统一类型
+				const currentValue = this.row.get(name);
 				try {
-					if (this.row.get(name) !== null || !t.nullable)
-						this.row.set(name,
-							t.t.fromStr(this.row.get(name).toString())
-						);
-				} catch (e) {
-					if (typeof t.deafult === "function")
-						this.row.set(name, t.deafult());
+					if (currentValue != null || !t.nullable) {
+						this.row.set(name, t.t.fromStr(String(currentValue)));
+					}
+				} catch {
+					if (typeof t.defaultVal === "function")
+						this.row.set(name, t.defaultVal());
 					else
-						this.row.set(name, t.deafult);
+						this.row.set(name, t.defaultVal);
 				}
 			}
 		}
-		for (const [key, __value] of this.row.entries()) {
+		for (const [key] of this.row.entries()) {
 			if (!schema.map.has(key))
 				this.row.delete(key);
 		}
@@ -388,11 +409,11 @@ class DBRowWithID extends DBRow {
 	constructor(row: Map<string, any>, public id: number) {
 		super(row);
 	}
-	toString(__schema: DBSchema | null = null) {
-		let a = [];
+	toString() {
+		const a = [];
 		for (const [key, value] of this.row.entries())
 			if (value !== null && value !== undefined)
-				a.push(`"${key}":"${value.toString()}"`);
+				a.push(`"${escapeJsonString(key)}":"${escapeJsonString(value.toString())}"`);
 		return `{"id":${this.id},"row":{${a.join(',')}}}`;
 	}
 	valueOf() {
@@ -419,7 +440,7 @@ class DBRowWithID extends DBRow {
 /** 数据表类型 */
 class DBTable {
 	constructor(public name: string, public schema: DBSchema, public cnt: number = 0, public rows: DBRowWithID[] = []) {
-		for (let [__id, e] of this.rows.entries())
+		for (const e of this.rows)
 			e.updateT(this.schema);
 	}
 	valueOf() {
@@ -431,33 +452,43 @@ class DBTable {
 		}
 	}
 	toString() {
-		return `{"name":"${this.name}","schema":${this.schema.toString()},"rows":[${this.rows.map((e) => e.toString()).join(',')}],"cnt":${this.cnt}}`;
+		return `{"name":"${escapeJsonString(this.name)}","schema":${this.schema.toString()},"rows":[${this.rows.map((e) => e.toString()).join(',')}],"cnt":${this.cnt}}`;
 	}
 	setAll(rows: DBRowWithID[]) {
 		this.rows = rows;
-		for (let [__id, e] of this.rows.entries())
+		for (const e of this.rows)
 			e.updateT(this.schema);
 	}
 	insert(val: DBRow) {
-		let tmp = new DBRowWithID(val.row, ++this.cnt);
+		const tmp = new DBRowWithID(val.row, ++this.cnt);
 		tmp.updateT(this.schema);
 		this.rows.push(tmp);
 	}
 	delete(id: number) {
-		this.rows.splice(this.rows.findIndex((v) => v.id === id), 1);
+		const index = this.rows.findIndex((v) => v.id === id);
+		if (index !== -1) {
+			this.rows.splice(index, 1);
+		}
 	}
-	find(f: Function) {
+	find(f: (row: DBRowWithID) => boolean): DBRowWithID[] {
 		return this.rows.filter((v) => f(v));
 	}
-	sort(f: Function) {
-		let tmp = this.rows;
-		return tmp.sort((a, b) => f(a, b));
+	sort(f: (a: DBRowWithID, b: DBRowWithID) => number): DBRowWithID[] {
+		return this.rows.sort((a, b) => f(a, b));
 	}
 }
 
-function importDBTableFromString(str: string) {
-	let a = JSON.parse(str);
-	return new DBTable(a.name, DBSchema.fromStrMap(new Map<string, string>(Object.entries(a.schema))), a.cnt, (a.rows as Array<any>).map((e) => DBRowWithID.fromJSON(e)));
+function importDBTableFromString(str: string): DBTable {
+	let a: any;
+	try {
+		a = JSON.parse(str);
+	} catch {
+		throw new Error('Failed to parse table JSON data');
+	}
+	if (!a || typeof a !== 'object') throw new Error('Invalid table data format');
+	if (typeof a.name !== 'string') throw new Error('Table data missing "name" field');
+	if (!a.schema || typeof a.schema !== 'object') throw new Error('Table data missing "schema" field');
+	return new DBTable(a.name, DBSchema.fromStrMap(new Map<string, string>(Object.entries(a.schema))), a.cnt ?? 0, (a.rows as Array<any> ?? []).map((e) => DBRowWithID.fromJSON(e)));
 }
 
 // 导出类型定义

@@ -1,15 +1,16 @@
 import * as fs from 'node:fs';
 import * as types from './types.js';
+import { WBWDBSQL, type QueryResult } from './sql/index.js';
 
 /**
  * wbwdb 数据库管理器
  * @public
  * @example
  * ```typescript
- * const db = new wbwdbMannager('./data');
+ * const db = new wbwdbManager('./data');
  * await db.init();
  * ```
- * @description
+ * @remarks
  * 文件夹结构为
  * ```
  * dbroot/
@@ -17,15 +18,17 @@ import * as types from './types.js';
  *  ├─ table/(table name)/data.json   // 数据
  * ```
  */
-export class wbwdbMannager {
+export class wbwdbManager {
 	/** 数据库路径 */
 	path: string;
 	/** 根目录路径 */
-	rootdir: string | void | null = null;
+	rootdir: string | null = null;
 	/** 数据表 */
 	dbTables: Map<string, types.DBTable> = new Map();
 	/** 索引数据 */
 	private indexData: { tables: string[] } = { tables: [] };
+	/** SQL 引擎 */
+	private sql: WBWDBSQL | null = null;
 
 	/**
 	 * 创建数据库管理器实例
@@ -42,35 +45,31 @@ export class wbwdbMannager {
 	 * @public
 	 */
 	init = async (): Promise<void> => {
-		try {
-			const rootPath = this.path + '/dbroot';
-			await fs.promises.mkdir(rootPath, { recursive: true }).catch((err) => {
-				if (err.code !== 'EEXIST') {
-					throw err;
-				}
-			});
-			this.rootdir = rootPath;
+		const rootPath = this.path + '/dbroot';
+		await fs.promises.mkdir(rootPath, { recursive: true });
+		this.rootdir = rootPath;
 
-			// 读取或创建索引文件 index.json
-			const indexPath = rootPath + '/index.json';
-			try {
-				const indexContent = await fs.promises.readFile(indexPath, 'utf-8');
-				this.indexData = JSON.parse(indexContent);
-				// 加载所有已存在的表
-				for (const tableName of this.indexData.tables) {
-					await this.loadTable(tableName);
-				}
-			} catch (err: any) {
-				if (err.code === 'ENOENT') {
-					// 文件不存在，创建默认索引
-					this.indexData = { tables: [] };
-					await this.saveIndex();
-				} else {
-					throw err;
-				}
+		// 读取或创建索引文件 index.json
+		const indexPath = rootPath + '/index.json';
+		try {
+			const indexContent = await fs.promises.readFile(indexPath, 'utf-8');
+			const parsed = JSON.parse(indexContent);
+			if (!parsed || !Array.isArray(parsed.tables)) {
+				throw new Error('Invalid index.json format: missing "tables" array');
 			}
-		} catch (e) {
-			throw e;
+			this.indexData = parsed;
+			// 加载所有已存在的表
+			for (const tableName of this.indexData.tables) {
+				await this.loadTable(tableName);
+			}
+		} catch (err: any) {
+			if (err.code === 'ENOENT') {
+				// 文件不存在，创建默认索引
+				this.indexData = { tables: [] };
+				await this.saveIndex();
+			} else {
+				throw err;
+			}
 		}
 	}
 
@@ -172,7 +171,11 @@ export class wbwdbMannager {
 		const indexPath = `${this.rootdir}/index.json`;
 		try {
 			const indexContent = await fs.promises.readFile(indexPath, 'utf-8');
-			this.indexData = JSON.parse(indexContent);
+			const parsed = JSON.parse(indexContent);
+			if (!parsed || !Array.isArray(parsed.tables)) {
+				throw new Error('Invalid index.json format: missing "tables" array');
+			}
+			this.indexData = parsed;
 			// 加载所有表
 			for (const tableName of this.indexData.tables) {
 				await this.loadTable(tableName);
@@ -221,6 +224,38 @@ export class wbwdbMannager {
 			}
 		}
 	}
+
+	/**
+	 * 执行 SQL 查询
+	 * @param sql - SQL 语句
+	 * @param params - 参数化查询的参数
+	 * @returns 查询结果
+	 * @public
+	 * @example
+	 * ```typescript
+	 * const result = db.query("SELECT * FROM users WHERE age > $1", [25]);
+	 * console.log(result.rows);
+	 * ```
+	 */
+	query(sql: string, params?: unknown[]): QueryResult {
+		if (!this.sql) {
+			this.sql = new WBWDBSQL(this.dbTables);
+		}
+		return this.sql.execute(sql, params);
+	}
+
+	/**
+	 * 获取 SQL 引擎实例
+	 * @public
+	 */
+	getSQL(): WBWDBSQL {
+		if (!this.sql) {
+			this.sql = new WBWDBSQL(this.dbTables);
+		}
+		return this.sql;
+	}
 };
 
 export * from './types.js';
+export { WBWDBSQL, Parser, SQLExecutor, TableStore } from './sql/index.js';
+export type { QueryResult, Row, SQLNode } from './sql/index.js';

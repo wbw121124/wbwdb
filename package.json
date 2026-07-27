@@ -10,8 +10,7 @@
 	"license": "GPLv3.0-only",
 	"private": false,
 	"dependencies": {
-		"tslint": "^6.1.3",
-		"typescript": "^6.0.2",
+		"@typescript/native": "npm:typescript@^7.0.2",
 		"uuid": "^14.0.1"
 	},
 	"files": [
@@ -23,17 +22,20 @@
 		"build": "rolldown -c",
 		"build:watch": "rolldown -c --watch",
 		"clean": "rm -rf lib",
-		"lint": "tslint -c tslint.json src/**/*.ts",
+		"lint": "eslint src/",
 		"doc": "rimraf docs && typedoc",
 		"dev": "npm run doc && npm run build && npm run test",
 		"test": "node --experimental-strip-types test/demo.ts"
 	},
 	"devDependencies": {
+		"@eslint/js": "^10.0.1",
 		"@types/node": "^26.1.1",
-		"@types/uuid": "^10.0.0",
+		"eslint": "^10.8.0",
+		"rimraf": "^6.1.3",
 		"rolldown": "^1.2.0",
-		"rolldown-plugin-dts": "^0.27.12",
+		"rolldown-plugin-dts": "^0.27.14",
 		"typedoc": "^0.28.20",
-		"rimraf": "^6.1.3"
+		"typescript": "npm:@typescript/typescript6@^6.0.2",
+		"typescript-eslint": "^8.65.0"
 	}
 }
