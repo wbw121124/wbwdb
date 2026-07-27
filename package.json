@@ -41,5 +41,8 @@
 		"typedoc": "^0.28.20",
 		"typescript": "npm:@typescript/typescript6@^6.0.2",
 		"typescript-eslint": "^8.65.0"
+	},
+	"allowScripts": {
+		"bcrypt@6.0.0": true
 	}
 }
