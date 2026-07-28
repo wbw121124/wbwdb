@@ -11,6 +11,7 @@ export class WBWDBSQL {
 	constructor(wbwdbTables: Map<string, DBTable>) {
 		this.wbwdbTables = wbwdbTables;
 		const initial = new Map<string, Row[]>();
+		const schemas = new Map<string, Map<string, { name: string; notNull: boolean; defaultValue: unknown }>>();
 		for (const [name, table] of wbwdbTables) {
 			const rows: Row[] = table.rows.map(r => {
 				const row: Row = {};
@@ -21,8 +22,17 @@ export class WBWDBSQL {
 				return row;
 			});
 			initial.set(name, rows);
+			const schemaMap = new Map<string, { name: string; notNull: boolean; defaultValue: unknown }>();
+			for (const [col, fullType] of table.schema.map.entries()) {
+				schemaMap.set(col, {
+					name: fullType.t.name,
+					notNull: fullType.nullable === false,
+					defaultValue: fullType.defaultVal,
+				});
+			}
+			schemas.set(name, schemaMap);
 		}
-		this.executor = new SQLExecutor(initial);
+		this.executor = new SQLExecutor(initial, schemas);
 	}
 
 	execute(sql: string, params?: unknown[]): QueryResult {
@@ -84,7 +94,8 @@ export class WBWDBSQL {
 
 			const schemaMap = new Map<string, DBFullType<any>>();
 			for (const [colName, colDef] of store.schema.entries()) {
-				const dbType = dbtypes.get(colDef.name) ?? dbtypes.get('String')!;
+				const capitalizedName = colDef.name.charAt(0).toUpperCase() + colDef.name.slice(1);
+				const dbType = dbtypes.get(colDef.name) ?? dbtypes.get(capitalizedName) ?? dbtypes.get('String')!;
 				schemaMap.set(colName, new DBFullType(dbType, colDef.notNull, colDef.defaultValue ?? undefined));
 			}
 			const schema = new DBSchema(schemaMap);
@@ -92,13 +103,15 @@ export class WBWDBSQL {
 			const rows: DBRowWithID[] = store.rows.map(r => {
 				const rowMap = new Map<string, any>();
 				for (const [k, v] of Object.entries(r)) {
-					if (k === 'id') continue;
 					rowMap.set(k, v);
 				}
 				return new DBRowWithID(rowMap, Number(r.id) || 0);
 			});
 
 			const table = new DBTable(name, schema, store.autoIncrement, rows);
+			for (const row of table.rows) {
+				row.updateT(table.schema);
+			}
 			this.wbwdbTables.set(name, table);
 		}
 		for (const name of this.wbwdbTables.keys()) {

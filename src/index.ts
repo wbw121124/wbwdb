@@ -114,6 +114,7 @@ export class wbwdbManager {
 	 * @private
 	 */
 	private async saveIndex(): Promise<void> {
+		this.indexData.tables = [...this.dbTables.keys()];
 		const indexPath = `${this.rootdir}/index.json`;
 		await fs.promises.writeFile(indexPath, JSON.stringify(this.indexData, null, 2), 'utf-8');
 	}

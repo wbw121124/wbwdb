@@ -65,7 +65,7 @@ export class SQLExecutor {
 	private superUser = true;
 	private authContext: { userId: string; username: string; roles: string[]; permissions: string[] } | null = null;
 
-	constructor(existingTables?: Map<string, Row[]>) {
+	constructor(existingTables?: Map<string, Row[]>, existingSchemas?: Map<string, Map<string, { name: string; notNull: boolean; defaultValue: unknown }>>) {
 		// Sync existing tables into memory
 		if (existingTables) {
 			for (const [name, rows] of existingTables) {
@@ -74,6 +74,12 @@ export class SQLExecutor {
 					store.rows.push({ ...row });
 				}
 				store.findMaxId();
+				const schema = existingSchemas?.get(name);
+				if (schema) {
+					for (const [col, def] of schema) {
+						store.schema.set(col, def);
+					}
+				}
 				this.tables.set(name, store);
 			}
 		}
@@ -1159,7 +1165,8 @@ export class SQLExecutor {
 			// Build schema
 			const schemaMap = new Map<string, DBFullType<any>>();
 			for (const [colName, colDef] of store.schema.entries()) {
-				const dbType = dbtypes.get(colDef.name) ?? dbtypes.get('String')!;
+				const capitalizedName = colDef.name.charAt(0).toUpperCase() + colDef.name.slice(1);
+				const dbType = dbtypes.get(colDef.name) ?? dbtypes.get(capitalizedName) ?? dbtypes.get('String')!;
 				schemaMap.set(colName, new DBFullType(dbType, colDef.notNull, colDef.defaultValue ?? undefined));
 			}
 			const schema = new DBSchema(schemaMap);

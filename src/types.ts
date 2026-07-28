@@ -111,7 +111,7 @@ function escapeJsonString(str: string): string {
 		.replace(/\n/g, '\\n')
 		.replace(/\r/g, '\\r')
 		.replace(/\t/g, '\\t')
-		.replace(/\b/g, '\\b')
+		.replace(/[\b]/g, '\\b')
 		.replace(/\f/g, '\\f');
 	// Escape remaining control characters (U+0000 to U+001F)
 	let out = '';
@@ -164,6 +164,8 @@ function dbtypeMaker<T>(name: string, defaultValue?: T): DBTypeDef<T> {
 					: Object(value)).toString();
 		},
 		(value: string): T => {
+			if (name === 'Number') return Number(value) as T;
+			if (name === 'Boolean') return (value === 'true') as T;
 			return value as T;
 		},
 		(_nullable?: boolean): T => {

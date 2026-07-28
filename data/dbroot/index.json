@@ -1,3 +1,5 @@
 {
-  "tables": []
+  "tables": [
+    "test_cli"
+  ]
 }
