@@ -1,6 +1,6 @@
 node_modules/
 demo_data/
-lib/
+./lib/
 .npmrc
 rust/target/
 data/

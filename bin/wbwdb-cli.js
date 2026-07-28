@@ -5,6 +5,7 @@ import { registerShellCommand, shell } from './commands/shell.js';
 import { registerTableCommands, listTables, tableInfo, createTable } from './commands/table.js';
 import { registerUserCommands, listUsers, createUser } from './commands/user.js';
 import { registerRoleCommands, listRoles, createRole } from './commands/role.js';
+import { registerServerCommand, startServer } from './commands/server.js';
 import { initDB } from './lib/db.js';
 
 const cli = CliTools.create({
@@ -22,6 +23,7 @@ registerShellCommand(program, cli);
 registerTableCommands(program, cli);
 registerUserCommands(program, cli);
 registerRoleCommands(program, cli);
+registerServerCommand(program, cli);
 
 program
 	.command('tables')
@@ -37,6 +39,7 @@ cli.onAction(async (options) => {
 	cli.newline();
 
 	const action = await cli.promptSelect('Choose an action:', [
+		{ value: 'server', name: 'Start API Server', description: 'Start HTTP REST API server' },
 		{ value: 'shell', name: 'SQL Shell', description: 'Interactive SQL query terminal' },
 		{ value: 'tables', name: 'List Tables', description: 'Show all database tables' },
 		{ value: 'table-info', name: 'Table Info', description: 'View table schema and data' },
@@ -57,6 +60,10 @@ cli.onAction(async (options) => {
 	const opts = { json: options.json };
 
 	switch (action) {
+		case 'server': {
+			await startServer(dbPath, options.port || 3000, options.host || '127.0.0.1', cli);
+			break;
+		}
 		case 'shell':
 			await shell(dbPath, cli);
 			break;

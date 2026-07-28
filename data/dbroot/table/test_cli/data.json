@@ -1,1 +1,0 @@
-{"name":"test_cli","schema":{"name":"String","age":"Number"},"rows":[{"id":1,"row":{"name":"Alice","age":"30"}},{"id":2,"row":{"name":"Bob","age":"25"}}],"cnt":2}
