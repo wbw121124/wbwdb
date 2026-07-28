@@ -1,5 +1,5 @@
-<!DOCTYPE html><html class="default" lang="zh" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>TableHook | wbwdb - v1.2.3</title><meta name="description" content="Documentation for wbwdb"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
-<div class="tsd-toolbar-contents container"><a href="../index.html" class="title">wbwdb - v1.2.3</a>
+<!DOCTYPE html><html class="default" lang="zh" data-base="../"><head><meta charset="utf-8"/><meta http-equiv="x-ua-compatible" content="IE=edge"/><title>TableHook | wbwdb - v1.2.4</title><meta name="description" content="Documentation for wbwdb"/><meta name="viewport" content="width=device-width, initial-scale=1"/><link rel="stylesheet" href="../assets/style.css"/><link rel="stylesheet" href="../assets/highlight.css"/><script defer src="../assets/main.js"></script><script async src="../assets/icons.js" id="tsd-icons-script"></script><script async src="../assets/search.js" id="tsd-search-script"></script><script async src="../assets/navigation.js" id="tsd-nav-script"></script><script async src="../assets/hierarchy.js" id="tsd-hierarchy-script"></script></head><body><script>document.documentElement.dataset.theme = localStorage.getItem("tsd-theme") || "os";document.body.style.display="none";setTimeout(() => window.app?app.showPage():document.body.style.removeProperty("display"),500)</script><header class="tsd-page-toolbar">
+<div class="tsd-toolbar-contents container"><a href="../index.html" class="title">wbwdb - v1.2.4</a>
 <div id="tsd-toolbar-links"></div><button id="tsd-search-trigger" class="tsd-widget" aria-label="搜索"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-search"></use></svg></button><dialog id="tsd-search" aria-label="搜索"><input role="combobox" id="tsd-search-input" aria-controls="tsd-search-results" aria-autocomplete="list" aria-expanded="true" autocapitalize="off" autocomplete="off" placeholder="搜索文档" maxLength="100"/>
 <ul role="listbox" id="tsd-search-results"></ul>
 <div id="tsd-search-status" aria-live="polite" aria-atomic="true">
@@ -15,7 +15,7 @@
 </div></section>
 <div class="tsd-signature"><span class="tsd-signature-keyword">interface</span> <span class="tsd-kind-interface">TableHook</span> <span class="tsd-signature-symbol">{</span><br/>    <a class="tsd-kind-property" href="#name">name</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#table">table</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#event">event</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;INSERT&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;UPDATE&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;DELETE&quot;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#timing">timing</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;BEFORE&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;AFTER&quot;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#language">language</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;js&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;sql&quot;</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#body">body</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span><span class="tsd-signature-symbol">;</span><br/>    <a class="tsd-kind-property" href="#enabled">enabled</a><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span><span class="tsd-signature-symbol">;</span><br/><span class="tsd-signature-symbol">}</span></div><aside class="tsd-sources">
 <ul>
-<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/1ead6f5a2a261baba363889219175378a9de16ba/src/types.ts#L443">types.ts:443</a></li></ul></aside>
+<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/798d147d317cf8c06e2c837e6e09e379875518e0/src/types.ts#L443">types.ts:443</a></li></ul></aside>
 <section class="tsd-panel-group tsd-index-group">
 <section class="tsd-panel tsd-index-panel">
 <details class="tsd-index-content tsd-accordion" open><summary class="tsd-accordion-summary tsd-index-summary"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>
@@ -38,37 +38,37 @@
 <h3 class="tsd-anchor-link" id="name"><span>name</span><a href="#name" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">name</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div><aside class="tsd-sources">
 <ul>
-<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/1ead6f5a2a261baba363889219175378a9de16ba/src/types.ts#L444">types.ts:444</a></li></ul></aside></section>
+<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/798d147d317cf8c06e2c837e6e09e379875518e0/src/types.ts#L444">types.ts:444</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="table"><span>table</span><a href="#table" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">table</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div><aside class="tsd-sources">
 <ul>
-<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/1ead6f5a2a261baba363889219175378a9de16ba/src/types.ts#L445">types.ts:445</a></li></ul></aside></section>
+<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/798d147d317cf8c06e2c837e6e09e379875518e0/src/types.ts#L445">types.ts:445</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="event"><span>event</span><a href="#event" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">event</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;INSERT&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;UPDATE&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;DELETE&quot;</span></div><aside class="tsd-sources">
 <ul>
-<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/1ead6f5a2a261baba363889219175378a9de16ba/src/types.ts#L446">types.ts:446</a></li></ul></aside></section>
+<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/798d147d317cf8c06e2c837e6e09e379875518e0/src/types.ts#L446">types.ts:446</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="timing"><span>timing</span><a href="#timing" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">timing</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;BEFORE&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;AFTER&quot;</span></div><aside class="tsd-sources">
 <ul>
-<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/1ead6f5a2a261baba363889219175378a9de16ba/src/types.ts#L447">types.ts:447</a></li></ul></aside></section>
+<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/798d147d317cf8c06e2c837e6e09e379875518e0/src/types.ts#L447">types.ts:447</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="language"><span>language</span><a href="#language" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">language</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">&quot;js&quot;</span> <span class="tsd-signature-symbol">|</span> <span class="tsd-signature-type">&quot;sql&quot;</span></div><aside class="tsd-sources">
 <ul>
-<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/1ead6f5a2a261baba363889219175378a9de16ba/src/types.ts#L448">types.ts:448</a></li></ul></aside></section>
+<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/798d147d317cf8c06e2c837e6e09e379875518e0/src/types.ts#L448">types.ts:448</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="body"><span>body</span><a href="#body" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">body</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">string</span></div><aside class="tsd-sources">
 <ul>
-<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/1ead6f5a2a261baba363889219175378a9de16ba/src/types.ts#L449">types.ts:449</a></li></ul></aside></section>
+<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/798d147d317cf8c06e2c837e6e09e379875518e0/src/types.ts#L449">types.ts:449</a></li></ul></aside></section>
 <section class="tsd-panel tsd-member">
 <h3 class="tsd-anchor-link" id="enabled"><span>enabled</span><a href="#enabled" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="../assets/icons.svg#icon-anchor"></use></svg></a></h3>
 <div class="tsd-signature"><span class="tsd-kind-property">enabled</span><span class="tsd-signature-symbol">:</span> <span class="tsd-signature-type">boolean</span></div><aside class="tsd-sources">
 <ul>
-<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/1ead6f5a2a261baba363889219175378a9de16ba/src/types.ts#L450">types.ts:450</a></li></ul></aside></section></section></details></div>
+<li>定义于 <a href="https://github.com/wbw121124/wbwdb/blob/798d147d317cf8c06e2c837e6e09e379875518e0/src/types.ts#L450">types.ts:450</a></li></ul></aside></section></section></details></div>
 <div class="col-sidebar">
 <div class="page-menu">
 <div class="tsd-navigation settings">
@@ -86,7 +86,7 @@
 <details open class="tsd-accordion tsd-page-navigation-section"><summary class="tsd-accordion-summary" data-key="section-属性"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><use href="../assets/icons.svg#icon-chevronDown"></use></svg>属性</summary>
 <div><a href="#name"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="属性"><use href="../assets/icons.svg#icon-1024"></use></svg><span>name</span></a><a href="#table"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="属性"><use href="../assets/icons.svg#icon-1024"></use></svg><span>table</span></a><a href="#event"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="属性"><use href="../assets/icons.svg#icon-1024"></use></svg><span>event</span></a><a href="#timing"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="属性"><use href="../assets/icons.svg#icon-1024"></use></svg><span>timing</span></a><a href="#language"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="属性"><use href="../assets/icons.svg#icon-1024"></use></svg><span>language</span></a><a href="#body"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="属性"><use href="../assets/icons.svg#icon-1024"></use></svg><span>body</span></a><a href="#enabled"><svg class="tsd-kind-icon" viewBox="0 0 24 24" aria-label="属性"><use href="../assets/icons.svg#icon-1024"></use></svg><span>enabled</span></a></div></details></div></details></div>
 <div class="site-menu">
-<nav class="tsd-navigation"><a href="../modules.html">wbwdb - v1.2.3</a>
+<nav class="tsd-navigation"><a href="../modules.html">wbwdb - v1.2.4</a>
 <ul class="tsd-small-nested-navigation" id="tsd-nav-container">
 <li>加载中……</li></ul></nav></div></div></div><footer>
 <p class="tsd-generator">使用 <a href="https://typedoc.org/" target="_blank">TypeDoc</a> 生成</p></footer>
