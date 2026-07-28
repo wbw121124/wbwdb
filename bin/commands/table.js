@@ -1,6 +1,7 @@
 import { CliTools } from 'wbw-cli-tools-lib';
 import { initDB } from '../lib/db.js';
 import { displayTable, displayJSON } from '../lib/display.js';
+import { DBSchema, escapeJsonString } from '../../lib/index.js'
 
 function getRootOpts(command) {
 	let c = command;
@@ -137,44 +138,42 @@ export async function createTable(dbPath, parentCli) {
 		return;
 	}
 
-	const schema = {};
+	const schema = new Map();
 	cli.info('Define columns (enter empty name to finish):');
 
 	while (true) {
 		const colName = await cli.promptInput(`  Column name (empty to finish):`);
 		if (!colName) break;
 
-		if (schema[colName]) {
+		if (schema.has(colName)) {
 			cli.warn(`Column "${colName}" already defined.`);
 			continue;
 		}
 
 		const colType = await cli.promptSelect(`  Type for "${colName}":`, [
-			{ value: 'string', name: 'string' },
-			{ value: 'number', name: 'number' },
-			{ value: 'boolean', name: 'boolean' },
-			{ value: 'email', name: 'email' },
-			{ value: 'phone', name: 'phone' },
-			{ value: 'uuid', name: 'uuid' },
+			{ value: 'String', name: 'string' },
+			{ value: 'Number', name: 'number' },
+			{ value: 'Boolean', name: 'boolean' },
+			{ value: 'Email', name: 'email' },
+			{ value: 'Phone', name: 'phone' },
+			{ value: 'UUID', name: 'uuid' },
 		]);
 		if (!colType) break;
 
-		schema[colName] = colType;
+		schema.set(colName, colType);
 		cli.success(`  ${colName}: ${colType}`);
 	}
 
-	if (Object.keys(schema).length === 0) {
-		cli.warn('No columns defined. Cancelled.');
-		return;
-	}
-
-	cli.info(`Schema: ${JSON.stringify(schema)}`);
+	const a = [];
+	for (const [key, value] of schema.entries())
+		a.push(`"${escapeJsonString(key)}":"${escapeJsonString(value)}"`);
+	cli.info(`Schema: {${a.join(',')}}`);
 	const ok = await cli.promptConfirm(`Create table "${name}"?`);
 	if (!ok) { cli.warn('Cancelled.'); return; }
 
 	cli.spinnerStart('Creating table...');
 	try {
-		await db.createTable(name, schema);
+		await db.createTable(name, DBSchema.fromStrMap(schema));
 		await db.save();
 		cli.spinnerSucceed(`Table "${name}" created.`);
 	} catch (err) {
@@ -183,7 +182,7 @@ export async function createTable(dbPath, parentCli) {
 }
 
 export async function dropTable(dbPath, tableName, parentCli) {
-	const cli = parentCli || CliTools.create({ commandName: 'wbwdb', commandDescription: 'Drop table' });
+	const cli = parentCli || CliTools.create({ commandName: 'wbwdb' });
 	const db = await initDB(dbPath);
 
 	if (!db.dbTables.has(tableName)) {
@@ -191,15 +190,25 @@ export async function dropTable(dbPath, tableName, parentCli) {
 		return;
 	}
 
-	const ok = await cli.promptConfirm(`Drop table "${tableName}"? This cannot be undone.`);
-	if (!ok) { cli.warn('Cancelled.'); return; }
+	// 1. 危险操作前的红色警告与确认
+	cli.warn(`You are about to delete table "${tableName}". This action cannot be undone.`);
+	const ok = await cli.promptConfirm('Are you absolutely sure?');
 
-	cli.spinnerStart('Dropping table...');
+	if (!ok) {
+		cli.info('Operation cancelled by user.');
+		return;
+	}
+
+	// 2. Spinner 模拟处理过程
+	cli.spinnerStart(`Dropping table "${tableName}"...`);
+
 	try {
 		await db.dropTable(tableName);
 		await db.save();
-		cli.spinnerSucceed(`Table "${tableName}" dropped.`);
+		// 3. 成功后的绿色提示
+		cli.spinnerSucceed(`Table "${tableName}" has been permanently deleted.`);
 	} catch (err) {
-		cli.spinnerFail(err.message);
+		cli.spinnerFail('Failed to drop table.');
+		cli.error(err.message);
 	}
 }

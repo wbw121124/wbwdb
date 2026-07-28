@@ -133,24 +133,42 @@ export async function userInfo(dbPath, username, opts) {
 }
 
 export async function createUser(dbPath, parentCli) {
-	const cli = parentCli || CliTools.create({ commandName: 'wbwdb', commandDescription: 'Create user' });
+	const cli = parentCli || CliTools.create({ commandName: 'wbwdb' });
 	const { auth } = await initDBWithAuth(dbPath);
 
+	// 1. 基础信息输入
 	const username = await cli.promptInput('Username:', { required: true });
 	if (!username) { cli.warn('Cancelled.'); return; }
 
 	const email = await cli.promptInput('Email:', { required: true });
 	if (!email) { cli.warn('Cancelled.'); return; }
 
-	const password = await cli.promptPassword('Password:', { minLength: 6 });
+	// 2. 更安全的密码输入 (隐藏字符)
+	const password = await cli.promptPassword('Password:', {
+		minLength: 6,
+		message: 'Password must be at least 6 characters.'
+	});
 	if (!password) { cli.warn('Cancelled.'); return; }
 
-	cli.spinnerStart('Creating user...');
+	// 3. 二次确认
+	const confirmPass = await cli.promptPassword('Confirm Password:');
+	if (password !== confirmPass) {
+		cli.error('Passwords do not match.');
+		return;
+	}
+
+	// 4. 操作确认
+	const ok = await cli.promptConfirm(`Create user "${username}"?`);
+	if (!ok) { cli.warn('Cancelled.'); return; }
+
+	// 5. Spinner 加载反馈
+	cli.spinnerStart('Registering user...');
 	try {
 		const user = await auth.register({ username, email, password });
-		cli.spinnerSucceed(`User "${user.username}" created (id: ${user.id}).`);
+		cli.spinnerSucceed(`User "${user.username}" created successfully!`);
 	} catch (err) {
-		cli.spinnerFail(err.message);
+		cli.spinnerFail('Registration failed.');
+		cli.error(err.message);
 	}
 }
 

@@ -594,4 +594,4 @@ function importDBTableFromString(str: string): DBTable {
 
 // 导出类型定义
 export type { DBType, TableHook, RLSPolicyData };
-export { DBTypeDef, Email, Phone, UUID, dbtypeMaker, DBFullType, DBRow, DBTable, DBSchema, DBRowWithID, importDBTableFromString };
+export { DBTypeDef, Email, Phone, UUID, dbtypeMaker, DBFullType, DBRow, DBTable, DBSchema, DBRowWithID, importDBTableFromString, escapeJsonString };
