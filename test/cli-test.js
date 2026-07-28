@@ -3,6 +3,7 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { promisify } from 'node:util';
+import * as pkg from '../package.json' with { type: "json" }
 
 const exec = promisify(execFile);
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -45,7 +46,7 @@ async function run(args = [], opts = {}) {
 }
 
 async function cleanup() {
-	await fs.promises.rm(testDbDir, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(testDbDir, { recursive: true, force: true }).catch(() => { });
 }
 
 // ── Tests ────────────────────────────────────────────────
@@ -69,7 +70,7 @@ async function testVersion() {
 	console.log('\n📋 --version');
 	const r = await run(['--version']);
 	assert(r.code === 0, 'exits with code 0');
-	assertIncludes(r.stdout, '1.0.0', 'shows version');
+	assertIncludes(r.stdout, pkg.default.version, 'shows version');
 }
 
 async function testTablesEmpty() {

@@ -7,13 +7,13 @@ import { registerUserCommands, listUsers, createUser } from './commands/user.js'
 import { registerRoleCommands, listRoles, createRole } from './commands/role.js';
 import { registerServerCommand, startServer } from './commands/server.js';
 import { initDB } from './lib/db.js';
+import * as pkg from '../package.json' with { type: "json" }
 
 const cli = CliTools.create({
 	commandName: 'wbwdb',
 	commandDescription: 'WBWDB - File-based JSON database CLI',
 });
-
-cli.setVersion('1.0.0');
+cli.setVersion(`${pkg.default.version}`);
 cli.addOption('-d, --db <path>', 'Database path', './data');
 cli.addOption('--json', 'Output as JSON', false);
 

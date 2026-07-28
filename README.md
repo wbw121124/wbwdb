@@ -16,10 +16,10 @@ wbwdb [options] [command]
 
 ### 全局选项
 
-| 选项 | 说明 | 默认值 |
-|------|------|--------|
-| `-d, --db <path>` | 数据库路径 | `./data` |
-| `--json` | JSON 格式输出 | `false` |
+| 选项              | 说明          | 默认值   |
+| ----------------- | ------------- | -------- |
+| `-d, --db <path>` | 数据库路径    | `./data` |
+| `--json`          | JSON 格式输出 | `false`  |
 
 ### 命令
 
@@ -55,6 +55,11 @@ wbwdb role delete <name>
 # 权限
 wbwdb grant <username> <role>
 wbwdb revoke <username> <role>
+
+# 启动 API server
+wbwdb server
+wbwdb server [options]
+wbwdb server -p 3000 -H 127.0.0.1
 ```
 
 ### SQL Shell 元命令
@@ -109,15 +114,15 @@ await auth.assignRole(user.id, role.id);
 
 ## 内置类型
 
-| 类型 | 说明 |
-|------|------|
-| `Number` | 数字 |
-| `String` | 字符串 |
-| `Boolean` | 布尔值 |
-| `Date` | 日期 |
-| `Email` | 邮箱（自动验证格式） |
-| `Phone` | 电话号码（支持中国大陆手机号） |
-| `UUID` | UUID（自动校验） |
+| 类型      | 说明                           |
+| --------- | ------------------------------ |
+| `Number`  | 数字                           |
+| `String`  | 字符串                         |
+| `Boolean` | 布尔值                         |
+| `Date`    | 日期                           |
+| `Email`   | 邮箱（自动验证格式）           |
+| `Phone`   | 电话号码（支持中国大陆手机号） |
+| `UUID`    | UUID（自动校验）               |
 
 自定义类型：
 
