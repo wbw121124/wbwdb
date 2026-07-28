@@ -32,7 +32,7 @@
 		"doc": "rimraf docs && typedoc",
 		"dev": "npm run doc && npm run build && npm run test",
 		"test": "node --experimental-strip-types test/demo.ts && node --experimental-strip-types test/auth-demo.ts && node test/cli-test.js",
-		"release": "npm run build && npm publish",
+		"release": "npm run build && npm run doc && npm publish",
 		"release:patch": "npm version patch && npm run release",
 		"release:minor": "npm version minor && npm run release",
 		"release:major": "npm version major && npm run release"

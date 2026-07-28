@@ -1,8 +1,54 @@
 import { Parser } from './parser.js';
 import { SQLExecutor, type QueryResult, type Row } from './executor.js';
 import { DBTable, DBSchema, DBFullType, DBRowWithID, dbtypes } from '../types.js';
+import type { TableHook, RLSPolicyData } from '../types.js';
 
 export type { QueryResult, Row } from './executor.js';
+
+function splitStatements(sql: string): string[] {
+	const result: string[] = [];
+	let i = 0;
+	let start = 0;
+	while (i < sql.length) {
+		const ch = sql[i];
+		if (ch === "'") {
+			i++;
+			while (i < sql.length && sql[i] !== "'") {
+				if (sql[i] === '\\') i++;
+				i++;
+			}
+			i++;
+		} else if (ch === '"') {
+			i++;
+			while (i < sql.length && sql[i] !== '"') {
+				if (sql[i] === '\\') i++;
+				i++;
+			}
+			i++;
+		} else if (ch === '$' && i + 1 < sql.length && sql[i + 1] === '$') {
+			i += 2;
+			while (i < sql.length) {
+				if (sql[i] === '$' && i + 1 < sql.length && sql[i + 1] === '$') {
+					i += 2;
+					break;
+				}
+				i++;
+			}
+		} else if (ch === ';') {
+			const part = sql.slice(start, i);
+			if (part.trim()) result.push(part);
+			start = i + 1;
+			i++;
+		} else {
+			i++;
+		}
+	}
+	if (start < sql.length) {
+		const part = sql.slice(start);
+		if (part.trim()) result.push(part);
+	}
+	return result;
+}
 
 export class WBWDBSQL {
 	private executor: SQLExecutor;
@@ -12,6 +58,8 @@ export class WBWDBSQL {
 		this.wbwdbTables = wbwdbTables;
 		const initial = new Map<string, Row[]>();
 		const schemas = new Map<string, Map<string, { name: string; notNull: boolean; defaultValue: unknown }>>();
+		const rlsStates = new Map<string, { enabled: boolean; forced: boolean; policies: any[] }>();
+		const hooksStates = new Map<string, TableHook[]>();
 		for (const [name, table] of wbwdbTables) {
 			const rows: Row[] = table.rows.map(r => {
 				const row: Row = {};
@@ -31,15 +79,23 @@ export class WBWDBSQL {
 				});
 			}
 			schemas.set(name, schemaMap);
+			rlsStates.set(name, {
+				enabled: table.rlsEnabled,
+				forced: table.rlsForced,
+				policies: table.policies,
+			});
+			if (table.hooks.length > 0) {
+				hooksStates.set(name, table.hooks);
+			}
 		}
-		this.executor = new SQLExecutor(initial, schemas);
+		this.executor = new SQLExecutor(initial, schemas, rlsStates, hooksStates);
 	}
 
 	execute(sql: string, params?: unknown[]): QueryResult {
 		const trimmed = sql.trim();
 		if (!trimmed) throw new Error('Empty SQL statement');
 
-		const stmts = trimmed.split(/;(?=\s|$)/g).filter(s => s.trim());
+		const stmts = splitStatements(trimmed).filter(s => s.trim());
 		if (stmts.length === 1) {
 			const parser = new Parser(trimmed);
 			const ast = parser.parse();
@@ -108,7 +164,33 @@ export class WBWDBSQL {
 				return new DBRowWithID(rowMap, Number(r.id) || 0);
 			});
 
-			const table = new DBTable(name, schema, store.autoIncrement, rows);
+			// Build RLS policies
+			const policies: RLSPolicyData[] = store.policies.map(p => ({
+				name: p.name,
+				cmd: p.cmd,
+				permissive: p.permissive,
+				roles: p.roles,
+				using: p.using ? JSON.parse(JSON.stringify(p.using)) : null,
+				withCheck: p.withCheck ? JSON.parse(JSON.stringify(p.withCheck)) : null,
+			}));
+
+			// Build hooks
+			const hooks: TableHook[] = store.hooks.map(h => ({
+				name: h.name,
+				table: h.table,
+				event: h.event,
+				timing: h.timing,
+				language: h.language,
+				body: h.body,
+				enabled: h.enabled,
+			}));
+
+			const table = new DBTable(name, schema, store.autoIncrement, rows, {
+				rlsEnabled: store.rlsEnabled,
+				rlsForced: store.rlsForced,
+				policies,
+				hooks,
+			});
 			for (const row of table.rows) {
 				row.updateT(table.schema);
 			}

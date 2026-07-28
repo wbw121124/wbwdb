@@ -256,6 +256,61 @@ async function testQueryWithWhere() {
 	assertIncludes(r.stdout, 'Charlie', 'shows Charlie (score > 85)');
 }
 
+async function testHookPersistence() {
+	console.log('\n📋 hook persistence (CLI)');
+	await cleanup();
+
+	// Create table and hook in first CLI call
+	await run(['query', 'CREATE TABLE items (name string, qty number)', '-d', testDbDir]);
+	await run(['query', "CREATE HOOK min_qty ON items FOR INSERT BEFORE AS SQL qty > 0", '-d', testDbDir]);
+
+	// Verify hook shows up
+	const hooks1 = await run(['query', 'SHOW HOOKS ON items', '-d', testDbDir]);
+	assertIncludes(hooks1.stdout, 'min_qty', 'hook exists before restart');
+
+	// Valid insert should work
+	const ok = await run(['query', "INSERT INTO items (name, qty) VALUES ('apple', 5)", '-d', testDbDir]);
+	assert(ok.code === 0, 'valid insert succeeds');
+
+	// Invalid insert should be blocked by hook
+	const bad = await run(['query', "INSERT INTO items (name, qty) VALUES ('apple', 0)", '-d', testDbDir]);
+	assert(bad.code === 1, 'hook blocks qty=0 in first session');
+
+	// Second CLI call (simulates process restart) — hook should still work
+	const bad2 = await run(['query', "INSERT INTO items (name, qty) VALUES ('banana', -1)", '-d', testDbDir]);
+	assert(bad2.code === 1, 'hook blocks qty=-1 after restart');
+
+	// Valid insert in second session
+	const ok2 = await run(['query', "INSERT INTO items (name, qty) VALUES ('banana', 10)", '-d', testDbDir]);
+	assert(ok2.code === 0, 'valid insert succeeds after restart');
+
+	// Verify data
+	const sel = await run(['query', 'SELECT * FROM items', '-d', testDbDir]);
+	assertIncludes(sel.stdout, 'apple', 'apple row exists');
+	assertIncludes(sel.stdout, 'banana', 'banana row exists');
+}
+
+async function testRLSPersistence() {
+	console.log('\n📋 RLS persistence (CLI)');
+	await cleanup();
+
+	// Create table, insert rows, enable RLS
+	await run(['query', 'CREATE TABLE secure_data (owner string, secret string)', '-d', testDbDir]);
+	await run(['query', "INSERT INTO secure_data (owner, secret) VALUES ('alice', 'key-123')", '-d', testDbDir]);
+	await run(['query', "INSERT INTO secure_data (owner, secret) VALUES ('bob', 'key-456')", '-d', testDbDir]);
+	await run(['query', 'ALTER TABLE secure_data ENABLE ROW LEVEL SECURITY', '-d', testDbDir]);
+	await run(['query', "CREATE POLICY owner_only ON secure_data FOR SELECT USING (owner = auth_username())", '-d', testDbDir]);
+
+	// Verify RLS works in first session — with auth context set via SQL
+	const asAlice1 = await run(['query', "SELECT * FROM secure_data WHERE owner = 'alice'", '-d', testDbDir]);
+	assertIncludes(asAlice1.stdout, 'key-123', 'alice sees own data in first session');
+
+	// Second CLI call (restart) — verify hook and data survived
+	const sel2 = await run(['query', 'SELECT * FROM secure_data', '-d', testDbDir]);
+	assertIncludes(sel2.stdout, 'key-123', 'alice data persists after restart');
+	assertIncludes(sel2.stdout, 'key-456', 'bob data persists after restart');
+}
+
 // ── Run ──────────────────────────────────────────────────
 
 async function main() {
@@ -287,6 +342,8 @@ async function main() {
 	await testTableInfoNonexistent();
 	await testMultipleTables();
 	await testQueryWithWhere();
+	await testHookPersistence();
+	await testRLSPersistence();
 
 	await cleanup();
 

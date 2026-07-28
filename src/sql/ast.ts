@@ -18,7 +18,10 @@ export type SQLNode =
 	| DropPolicyStatement
 	| AlterPolicyStatement
 	| EnableRLSStatement
-	| SetRoleStatement;
+	| SetRoleStatement
+	| CreateHookStatement
+	| DropHookStatement
+	| ShowHooksStatement;
 
 // ── SELECT ─────────────────────────────────────────────
 
@@ -244,6 +247,35 @@ export interface SetRoleStatement {
 	type: 'SET_ROLE';
 	role: string;
 	global: boolean;
+}
+
+// ── HOOKS ───────────────────────────────────────────────
+
+export type HookEvent = 'INSERT' | 'UPDATE' | 'DELETE';
+export type HookTiming = 'BEFORE' | 'AFTER';
+export type HookLanguage = 'js' | 'sql';
+
+export interface CreateHookStatement {
+	type: 'CREATE_HOOK';
+	hookName: string;
+	table: string;
+	event: HookEvent;
+	timing: HookTiming;
+	language: HookLanguage;
+	body: string;
+	ifNotExists: boolean;
+}
+
+export interface DropHookStatement {
+	type: 'DROP_HOOK';
+	hookName: string;
+	table: string;
+	ifExists: boolean;
+}
+
+export interface ShowHooksStatement {
+	type: 'SHOW_HOOKS';
+	table: string;
 }
 
 // ── Expression ─────────────────────────────────────────

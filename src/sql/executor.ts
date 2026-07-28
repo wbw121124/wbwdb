@@ -5,9 +5,12 @@ import type {
 	CreateIndexStatement, TruncateStatement, TransactionStatement,
 	CreatePolicyStatement, DropPolicyStatement, AlterPolicyStatement,
 	EnableRLSStatement, SetRoleStatement,
+	CreateHookStatement, DropHookStatement, ShowHooksStatement,
 	Expression,
 } from './ast.js';
 import { DBTable, DBSchema, DBFullType, DBRowWithID, dbtypes } from '../types.js';
+import type { TableHook, RLSPolicyData } from '../types.js';
+import { Parser } from './parser.js';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -40,6 +43,7 @@ export class TableStore {
 	rlsEnabled = false;
 	rlsForced = false;
 	policies: RLSPolicy[] = [];
+	hooks: TableHook[] = [];
 
 	nextId(): number {
 		return ++this.autoIncrement;
@@ -65,7 +69,7 @@ export class SQLExecutor {
 	private superUser = true;
 	private authContext: { userId: string; username: string; roles: string[]; permissions: string[] } | null = null;
 
-	constructor(existingTables?: Map<string, Row[]>, existingSchemas?: Map<string, Map<string, { name: string; notNull: boolean; defaultValue: unknown }>>) {
+	constructor(existingTables?: Map<string, Row[]>, existingSchemas?: Map<string, Map<string, { name: string; notNull: boolean; defaultValue: unknown }>>, existingRls?: Map<string, { enabled: boolean; forced: boolean; policies: any[] }>, existingHooks?: Map<string, TableHook[]>) {
 		// Sync existing tables into memory
 		if (existingTables) {
 			for (const [name, rows] of existingTables) {
@@ -79,6 +83,25 @@ export class SQLExecutor {
 					for (const [col, def] of schema) {
 						store.schema.set(col, def);
 					}
+				}
+				const rls = existingRls?.get(name);
+				if (rls) {
+					store.rlsEnabled = rls.enabled;
+					store.rlsForced = rls.forced;
+					for (const p of rls.policies) {
+						store.policies.push({
+							name: p.name,
+							cmd: p.cmd,
+							permissive: p.permissive,
+							roles: p.roles,
+							using: p.using,
+							withCheck: p.withCheck,
+						});
+					}
+				}
+				const hooks = existingHooks?.get(name);
+				if (hooks) {
+					store.hooks.push(...hooks);
 				}
 				this.tables.set(name, store);
 			}
@@ -119,8 +142,11 @@ export class SQLExecutor {
 			case 'CREATE_POLICY': return this.execCreatePolicy(stmt);
 			case 'DROP_POLICY': return this.execDropPolicy(stmt);
 			case 'ALTER_POLICY': return this.execAlterPolicy(stmt);
-			case 'ENABLE_RLS': return this.execEnableRLS(stmt);
-			case 'SET_ROLE': return this.execSetRole(stmt);
+		case 'ENABLE_RLS': return this.execEnableRLS(stmt);
+		case 'SET_ROLE': return this.execSetRole(stmt);
+		case 'CREATE_HOOK': return this.execCreateHook(stmt);
+		case 'DROP_HOOK': return this.execDropHook(stmt);
+		case 'SHOW_HOOKS': return this.execShowHooks(stmt);
 			default: throw new Error(`Unsupported statement type: ${(stmt as SQLNode).type}`);
 		}
 	}
@@ -412,6 +438,50 @@ export class SQLExecutor {
 		return sa < sb ? -1 : sa > sb ? 1 : 0;
 	}
 
+	// ── Hooks ───────────────────────────────────────────
+
+	private getHooks(store: TableStore, event: 'INSERT' | 'UPDATE' | 'DELETE', timing: 'BEFORE' | 'AFTER'): TableHook[] {
+		return store.hooks.filter(h => h.enabled && h.event === event && h.timing === timing);
+	}
+
+	private runHooks(hooks: TableHook[], row: Row, tableName: string, oldRow?: Row): void {
+		for (const hook of hooks) {
+			if (hook.language === 'js') {
+				try {
+					const fn = new Function('row', 'oldRow', 'tableName', hook.body);
+					fn(row, oldRow ?? null, tableName);
+				} catch (err: any) {
+					if (err.message === '__WBWDB_HOOK_ABORT__') throw err;
+					throw new Error(`Hook "${hook.name}" error: ${err.message}`);
+				}
+			} else if (hook.language === 'sql') {
+				try {
+					const parser = new Parser(`SELECT 1 WHERE ${hook.body}`);
+					const ast = parser.parse();
+					const result = this.evalExpr((ast as any).where, row);
+					if (!result) throw new Error('__WBWDB_HOOK_ABORT__');
+				} catch (err: any) {
+					if (err.message === '__WBWDB_HOOK_ABORT__') throw new Error(`Hook "${hook.name}" blocked the operation`);
+					throw new Error(`Hook "${hook.name}" error: ${err.message}`);
+				}
+			}
+		}
+	}
+
+	private runAfterHooks(hooks: TableHook[], row: Row, tableName: string): void {
+		for (const hook of hooks) {
+			if (!hook.enabled) continue;
+			if (hook.language === 'js') {
+				try {
+					const fn = new Function('row', 'tableName', hook.body);
+					fn(row, tableName);
+				} catch (err: any) {
+					console.error(`Hook "${hook.name}" error: ${err.message}`);
+				}
+			}
+		}
+	}
+
 	// ── INSERT ──────────────────────────────────────────
 
 	private execInsert(stmt: InsertStatement, params?: unknown[]): QueryResult {
@@ -428,6 +498,9 @@ export class SQLExecutor {
 					const colName = stmt.columns[i] || `col${i}`;
 					row[colName] = this.evalExpr(rowExprs[i], {}, params);
 				}
+
+				// BEFORE INSERT hooks
+				this.runHooks(this.getHooks(store, 'INSERT', 'BEFORE'), row, stmt.table);
 
 				// RLS WITH CHECK
 				if (!this.rlsCheckWith(store, row, 'INSERT')) {
@@ -455,6 +528,9 @@ export class SQLExecutor {
 
 				store.rows.push(row);
 				rows.push(row);
+
+				// AFTER INSERT hooks
+				this.runAfterHooks(this.getHooks(store, 'INSERT', 'AFTER'), row, stmt.table);
 			}
 
 			const columns = rows.length > 0 ? Object.keys(rows[0]) : [];
@@ -470,6 +546,9 @@ export class SQLExecutor {
 				row[stmt.columns[i]] = selRow[stmt.columns[i]] ?? selRow[Object.keys(selRow)[i]];
 			}
 
+			// BEFORE INSERT hooks
+			this.runHooks(this.getHooks(store, 'INSERT', 'BEFORE'), row, stmt.table);
+
 			// RLS WITH CHECK
 			if (!this.rlsCheckWith(store, row, 'INSERT')) {
 				throw new Error('new row violates row-level security policy');
@@ -477,6 +556,9 @@ export class SQLExecutor {
 
 			store.rows.push(row);
 			inserted.push(row);
+
+			// AFTER INSERT hooks
+			this.runAfterHooks(this.getHooks(store, 'INSERT', 'AFTER'), row, stmt.table);
 		}
 
 		return { columns: inserted.length > 0 ? Object.keys(inserted[0]) : stmt.columns, rows: inserted, rowCount: inserted.length, command: `INSERT ${inserted.length}` };
@@ -494,6 +576,11 @@ export class SQLExecutor {
 			// RLS: check USING (can access this row?)
 			if (!this.rlsCheck(store, row, 'UPDATE')) continue;
 
+			const oldRow = { ...row };
+
+			// BEFORE UPDATE hooks
+			this.runHooks(this.getHooks(store, 'UPDATE', 'BEFORE'), row, stmt.table, oldRow);
+
 			for (const set of stmt.sets) {
 				row[set.column] = this.evalExpr(set.value, row, params);
 			}
@@ -504,6 +591,9 @@ export class SQLExecutor {
 			}
 
 			updated.push({ ...row });
+
+			// AFTER UPDATE hooks
+			this.runAfterHooks(this.getHooks(store, 'UPDATE', 'AFTER'), row, stmt.table);
 		}
 
 		return { columns: updated.length > 0 ? Object.keys(updated[0]) : [], rows: updated, rowCount: updated.length, command: `UPDATE ${updated.length}` };
@@ -521,9 +611,18 @@ export class SQLExecutor {
 			// RLS: check USING (can access this row?)
 			if (!this.rlsCheck(store, row, 'DELETE')) return true;
 
-			deleted.push({ ...row });
+			// BEFORE DELETE hooks
+			this.runHooks(this.getHooks(store, 'DELETE', 'BEFORE'), row, stmt.table);
+
+			const rowCopy = { ...row };
+			deleted.push(rowCopy);
 			return false;
 		});
+
+		// AFTER DELETE hooks
+		for (const row of deleted) {
+			this.runAfterHooks(this.getHooks(store, 'DELETE', 'AFTER'), row, stmt.table);
+		}
 
 		return { columns: deleted.length > 0 ? Object.keys(deleted[0]) : [], rows: deleted, rowCount: deleted.length, command: `DELETE ${deleted.length}` };
 	}
@@ -806,6 +905,53 @@ export class SQLExecutor {
 		if (stmt.role === 'public' || stmt.role === 'none') this.superUser = true;
 		else this.superUser = false;
 		return { columns: [], rows: [], rowCount: 0, command: 'SET ROLE' };
+	}
+
+	// ── HOOKS ──────────────────────────────────────────
+
+	private execCreateHook(stmt: CreateHookStatement): QueryResult {
+		const store = this.getTable(stmt.table);
+		const exists = store.hooks.some(h => h.name === stmt.hookName);
+		if (exists && !stmt.ifNotExists) {
+			throw new Error(`Hook "${stmt.hookName}" already exists on table "${stmt.table}"`);
+		}
+		if (!exists) {
+			store.hooks.push({
+				name: stmt.hookName,
+				table: stmt.table,
+				event: stmt.event,
+				timing: stmt.timing,
+				language: stmt.language,
+				body: stmt.body,
+				enabled: true,
+			});
+		}
+		return { columns: [], rows: [], rowCount: 0, command: 'CREATE HOOK' };
+	}
+
+	private execDropHook(stmt: DropHookStatement): QueryResult {
+		const store = this.getTable(stmt.table);
+		const idx = store.hooks.findIndex(h => h.name === stmt.hookName);
+		if (idx === -1 && !stmt.ifExists) {
+			throw new Error(`Hook "${stmt.hookName}" does not exist on table "${stmt.table}"`);
+		}
+		if (idx >= 0) store.hooks.splice(idx, 1);
+		return { columns: [], rows: [], rowCount: 0, command: 'DROP HOOK' };
+	}
+
+	private execShowHooks(stmt: ShowHooksStatement): QueryResult {
+		const store = this.getTable(stmt.table);
+		const hooks = store.hooks;
+		const rows = hooks.map(h => ({
+			name: h.name,
+			table: h.table,
+			event: h.event,
+			timing: h.timing,
+			language: h.language,
+			body: h.body,
+			enabled: String(h.enabled),
+		}));
+		return { columns: ['name', 'table', 'event', 'timing', 'language', 'body', 'enabled'], rows, rowCount: rows.length, command: 'SHOW HOOKS' };
 	}
 
 	/** Get current role */
@@ -1181,7 +1327,33 @@ export class SQLExecutor {
 				return new DBRowWithID(rowMap, Number(r.id) || 0);
 			});
 
-			const table = new DBTable(name, schema, store.autoIncrement, rows);
+			// Build RLS policies
+			const policies: RLSPolicyData[] = store.policies.map(p => ({
+				name: p.name,
+				cmd: p.cmd,
+				permissive: p.permissive,
+				roles: p.roles,
+				using: p.using ? JSON.parse(JSON.stringify(p.using)) : null,
+				withCheck: p.withCheck ? JSON.parse(JSON.stringify(p.withCheck)) : null,
+			}));
+
+			// Build hooks
+			const hooks: TableHook[] = store.hooks.map(h => ({
+				name: h.name,
+				table: h.table,
+				event: h.event,
+				timing: h.timing,
+				language: h.language,
+				body: h.body,
+				enabled: h.enabled,
+			}));
+
+			const table = new DBTable(name, schema, store.autoIncrement, rows, {
+				rlsEnabled: store.rlsEnabled,
+				rlsForced: store.rlsForced,
+				policies,
+				hooks,
+			});
 			wbwdbTables.set(name, table);
 		}
 		// Remove tables that no longer exist in SQL engine

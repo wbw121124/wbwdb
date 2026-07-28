@@ -9,6 +9,7 @@ import type {
 	LikeExpr, ExistsExpr, SubqueryExpr, CastExpr, ParameterExpr, WindowFuncExpr, WindowExpr,
 	CreatePolicyStatement, DropPolicyStatement, AlterPolicyStatement,
 	EnableRLSStatement, SetRoleStatement,
+	CreateHookStatement, DropHookStatement, ShowHooksStatement,
 } from './ast.js';
 
 export class Parser {
@@ -54,6 +55,7 @@ export class Parser {
 			case 'SAVEPOINT': return this.parseTransaction();
 			case 'SET': return this.parseSet();
 			case 'EXPLAIN': return this.parseExplain();
+			case 'SHOW': return this.parseShow();
 			default: throw this.error(`Unexpected keyword: ${kw}`);
 		}
 	}
@@ -393,6 +395,9 @@ export class Parser {
 		if (this.match('KEYWORD', 'POLICY')) {
 			return this.parseCreatePolicy();
 		}
+		if (this.match('KEYWORD', 'HOOK')) {
+			return this.parseCreateHook();
+		}
 		this.expect('KEYWORD', 'TABLE');
 		const ifNotExists = this.match('KEYWORD', 'IF') && (this.expect('KEYWORD', 'NOT'), this.expect('KEYWORD', 'EXISTS'), true);
 		const table = this.parseTableName();
@@ -476,13 +481,16 @@ export class Parser {
 
 	// ── DROP TABLE ──────────────────────────────────────
 
-	private parseDrop(): DropTableStatement | DropIndexStatement | DropPolicyStatement {
+	private parseDrop(): DropTableStatement | DropIndexStatement | DropPolicyStatement | DropHookStatement {
 		this.expect('KEYWORD', 'DROP');
 		if (this.match('KEYWORD', 'INDEX')) {
 			return this.parseDropIndex();
 		}
 		if (this.match('KEYWORD', 'POLICY')) {
 			return this.parseDropPolicy();
+		}
+		if (this.match('KEYWORD', 'HOOK')) {
+			return this.parseDropHook();
 		}
 		this.expect('KEYWORD', 'TABLE');
 		const ifExists = this.match('KEYWORD', 'IF') && (this.expect('KEYWORD', 'EXISTS'), true);
@@ -726,6 +734,66 @@ export class Parser {
 		}
 
 		return result;
+	}
+
+	// ── CREATE HOOK ────────────────────────────────────
+
+	private parseCreateHook(): CreateHookStatement {
+		const ifNotExists = this.match('KEYWORD', 'IF') && (this.expect('KEYWORD', 'NOT'), this.expect('KEYWORD', 'EXISTS'), true);
+		const hookName = this.expectIdentOrKeyword();
+		this.expect('KEYWORD', 'ON');
+		const table = this.parseTableName();
+		this.expect('KEYWORD', 'FOR');
+		let event: CreateHookStatement['event'] = 'INSERT';
+		if (this.match('KEYWORD', 'INSERT')) event = 'INSERT';
+		else if (this.match('KEYWORD', 'UPDATE')) event = 'UPDATE';
+		else if (this.match('KEYWORD', 'DELETE')) event = 'DELETE';
+		else throw this.error('Expected INSERT, UPDATE, or DELETE after FOR');
+		let timing: CreateHookStatement['timing'] = 'BEFORE';
+		if (this.match('KEYWORD', 'BEFORE')) timing = 'BEFORE';
+		else if (this.match('KEYWORD', 'AFTER')) timing = 'AFTER';
+		else throw this.error('Expected BEFORE or AFTER');
+		this.expect('KEYWORD', 'AS');
+		let language: CreateHookStatement['language'] = 'js';
+		let body: string;
+		if (this.match('KEYWORD', 'JS')) {
+			language = 'js';
+			body = this.expect('STRING').value;
+		} else if (this.match('KEYWORD', 'SQL')) {
+			language = 'sql';
+			if (this.is('STRING')) {
+				body = this.advance().value;
+			} else {
+				const parts: string[] = [];
+				while (!this.is('EOF') && !this.is('SEMICOLON')) {
+					parts.push(this.advance().value);
+				}
+				body = parts.join(' ').trim();
+			}
+		} else {
+			throw this.error('Expected JS or SQL after AS');
+		}
+		return { type: 'CREATE_HOOK', hookName, table, event, timing, language, body, ifNotExists: !!ifNotExists };
+	}
+
+	// ── DROP HOOK ──────────────────────────────────────
+
+	private parseDropHook(): DropHookStatement {
+		const ifExists = this.match('KEYWORD', 'IF') && (this.expect('KEYWORD', 'EXISTS'), true);
+		const hookName = this.expectIdentOrKeyword();
+		this.expect('KEYWORD', 'ON');
+		const table = this.parseTableName();
+		return { type: 'DROP_HOOK', hookName, table, ifExists: !!ifExists };
+	}
+
+	// ── SHOW HOOKS ─────────────────────────────────────
+
+	private parseShow(): ShowHooksStatement {
+		this.expect('KEYWORD', 'SHOW');
+		this.expect('KEYWORD', 'HOOKS');
+		this.expect('KEYWORD', 'ON');
+		const table = this.parseTableName();
+		return { type: 'SHOW_HOOKS', table };
 	}
 
 	// ── Expression Parser ───────────────────────────────

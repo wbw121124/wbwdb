@@ -44,6 +44,7 @@ const KEYWORDS = new Set([
 	'SERIAL', 'AUTO_INCREMENT',
 	'CURRENT_USER', 'SESSION_USER',
 	'AUTH_USER_ID', 'AUTH_USERNAME', 'AUTH_ROLES', 'AUTH_PERMISSIONS', 'IS_AUTHENTICATED',
+	'HOOK', 'BEFORE', 'AFTER', 'JS', 'SQL', 'SHOW', 'HOOKS',
 ]);
 
 export class Tokenizer {
@@ -73,6 +74,11 @@ export class Tokenizer {
 		const ch = this.src[this.pos];
 		const startLine = this.line;
 		const startCol = this.col;
+
+		// Dollar-quoted string literal $$...$$
+		if (ch === '$' && this.pos + 1 < this.src.length && this.src[this.pos + 1] === '$') {
+			return this.readDollarString(startLine, startCol);
+		}
 
 		// String literal
 		if (ch === "'" || ch === '"') return this.readString(startLine, startCol);
@@ -141,6 +147,21 @@ export class Tokenizer {
 		}
 		this.advance(); // closing quote
 		return this.make('STRING', val, line, col);
+	}
+
+	private readDollarString(line: number, col: number): Token {
+		this.advance(); this.advance(); // skip opening $$
+		let val = '';
+		while (this.pos < this.src.length) {
+			if (this.src[this.pos] === '$' && this.pos + 1 < this.src.length && this.src[this.pos + 1] === '$') {
+				this.advance(); this.advance(); // skip closing $$
+				return this.make('STRING', val, line, col);
+			}
+			if (this.src[this.pos] === '\n') { this.line++; this.col = 1; }
+			val += this.src[this.pos];
+			this.advance();
+		}
+		throw new Error(`Unterminated $$ string at line ${line}, col ${col}`);
 	}
 
 	private readNumber(line: number, col: number): Token {

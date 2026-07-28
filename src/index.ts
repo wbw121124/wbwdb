@@ -33,6 +33,8 @@ export class wbwdbManager {
 	private sql: WBWDBSQL | null = null;
 	/** Auth 认证模块 */
 	auth: Auth | null = null;
+	/** API 事件监听器 */
+	private listeners: Map<string, Set<Function>> = new Map();
 
 	/**
 	 * 创建数据库管理器实例
@@ -262,7 +264,48 @@ export class wbwdbManager {
 		if (!this.sql) {
 			this.sql = new WBWDBSQL(this.dbTables);
 		}
-		return this.sql.execute(sql, params);
+		const trimmed = sql.trim().toUpperCase();
+		// Emit before events for DML statements
+		if (trimmed.startsWith('INSERT')) {
+			const tableName = this.extractTableName(sql);
+			if (tableName) this.emit('beforeInsert', tableName);
+		} else if (trimmed.startsWith('UPDATE')) {
+			const tableName = this.extractTableName(sql);
+			if (tableName) this.emit('beforeUpdate', tableName);
+		} else if (trimmed.startsWith('DELETE')) {
+			const tableName = this.extractTableName(sql);
+			if (tableName) this.emit('beforeDelete', tableName);
+		}
+
+		const result = this.sql.execute(sql, params);
+
+		// Emit after events for DML statements
+		if (trimmed.startsWith('INSERT')) {
+			const tableName = this.extractTableName(sql);
+			if (tableName) this.emit('afterInsert', tableName, result);
+		} else if (trimmed.startsWith('UPDATE')) {
+			const tableName = this.extractTableName(sql);
+			if (tableName) this.emit('afterUpdate', tableName, result);
+		} else if (trimmed.startsWith('DELETE')) {
+			const tableName = this.extractTableName(sql);
+			if (tableName) this.emit('afterDelete', tableName, result);
+		}
+
+		return result;
+	}
+
+	private extractTableName(sql: string): string | null {
+		const upper = sql.trim().toUpperCase();
+		let keyword: string;
+		if (upper.startsWith('INSERT')) keyword = 'INTO';
+		else if (upper.startsWith('UPDATE')) keyword = 'UPDATE';
+		else if (upper.startsWith('DELETE')) keyword = 'FROM';
+		else return null;
+		const idx = upper.indexOf(keyword);
+		if (idx === -1) return null;
+		const rest = sql.trim().slice(idx + keyword.length).trim();
+		const match = rest.match(/^(\w+)/);
+		return match ? match[1] : null;
 	}
 
 	/**
@@ -274,6 +317,70 @@ export class wbwdbManager {
 			this.sql = new WBWDBSQL(this.dbTables);
 		}
 		return this.sql;
+	}
+
+	// ── Event Listeners ────────────────────────────────
+
+	/**
+	 * 注册事件监听器
+	 * @param event - 事件名 (beforeInsert, afterInsert, beforeUpdate, afterUpdate, beforeDelete, afterDelete)
+	 * @param table - 表名 (可选，不传则所有表触发)
+	 * @param fn - 回调函数
+	 */
+	on(event: string, table: string, fn: Function): void;
+	on(event: string, fn: Function): void;
+	on(event: string, tableOrFn: string | Function, fn?: Function): void {
+		const table = typeof tableOrFn === 'string' ? tableOrFn : '*';
+		const callback = typeof tableOrFn === 'function' ? tableOrFn : fn;
+		if (!callback) return;
+		const key = `${event}:${table}`;
+		if (!this.listeners.has(key)) this.listeners.set(key, new Set());
+		this.listeners.get(key)!.add(callback);
+		// Also register on wildcard key
+		const wildcardKey = `${event}:*`;
+		if (!this.listeners.has(wildcardKey)) this.listeners.set(wildcardKey, new Set());
+		this.listeners.get(wildcardKey)!.add(callback);
+	}
+
+	/**
+	 * 移除事件监听器
+	 */
+	off(event: string, table: string, fn: Function): void;
+	off(event: string, fn: Function): void;
+	off(event: string, tableOrFn: string | Function, fn?: Function): void {
+		const table = typeof tableOrFn === 'string' ? tableOrFn : '*';
+		const callback = typeof tableOrFn === 'function' ? tableOrFn : fn;
+		if (!callback) return;
+		const key = `${event}:${table}`;
+		this.listeners.get(key)?.delete(callback);
+		const wildcardKey = `${event}:*`;
+		this.listeners.get(wildcardKey)?.delete(callback);
+	}
+
+	/**
+	 * 触发事件
+	 */
+	emit(event: string, tableName: string, ...args: unknown[]): void {
+		const specificKey = `${event}:${tableName}`;
+		const wildcardKey = `${event}:*`;
+		const specific = this.listeners.get(specificKey);
+		const wildcard = this.listeners.get(wildcardKey);
+		if (specific) {
+			for (const fn of specific) {
+				try { fn(...args); } catch (err) {
+					if (event.startsWith('before')) throw err;
+					console.error(`Event ${event} listener error:`, err);
+				}
+			}
+		}
+		if (wildcard) {
+			for (const fn of wildcard) {
+				try { fn(...args); } catch (err) {
+					if (event.startsWith('before')) throw err;
+					console.error(`Event ${event} listener error:`, err);
+				}
+			}
+		}
 	}
 };
 

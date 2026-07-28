@@ -439,11 +439,49 @@ class DBRowWithID extends DBRow {
 	}
 };
 
+/** Hook 定义 */
+interface TableHook {
+	name: string;
+	table: string;
+	event: 'INSERT' | 'UPDATE' | 'DELETE';
+	timing: 'BEFORE' | 'AFTER';
+	language: 'js' | 'sql';
+	body: string;
+	enabled: boolean;
+}
+
+/** RLS 策略 */
+interface RLSPolicyData {
+	name: string;
+	cmd: string;
+	permissive: boolean;
+	roles: string[];
+	using: any | null;
+	withCheck: any | null;
+}
+
 /** 数据表类型 */
 class DBTable {
-	constructor(public name: string, public schema: DBSchema, public cnt: number = 0, public rows: DBRowWithID[] = []) {
+	rlsEnabled = false;
+	rlsForced = false;
+	policies: RLSPolicyData[] = [];
+	hooks: TableHook[] = [];
+
+	constructor(
+		public name: string,
+		public schema: DBSchema,
+		public cnt: number = 0,
+		public rows: DBRowWithID[] = [],
+		extra?: { rlsEnabled?: boolean; rlsForced?: boolean; policies?: RLSPolicyData[]; hooks?: TableHook[] }
+	) {
 		for (const e of this.rows)
 			e.updateT(this.schema);
+		if (extra) {
+			if (extra.rlsEnabled !== undefined) this.rlsEnabled = extra.rlsEnabled;
+			if (extra.rlsForced !== undefined) this.rlsForced = extra.rlsForced;
+			if (extra.policies) this.policies = extra.policies;
+			if (extra.hooks) this.hooks = extra.hooks;
+		}
 	}
 	valueOf() {
 		return {
@@ -451,10 +489,48 @@ class DBTable {
 			schema: this.schema,
 			rows: this.rows,
 			cnt: this.cnt,
+			rlsEnabled: this.rlsEnabled,
+			rlsForced: this.rlsForced,
+			policies: this.policies,
+			hooks: this.hooks,
 		}
 	}
 	toString() {
-		return `{"name":"${escapeJsonString(this.name)}","schema":${this.schema.toString()},"rows":[${this.rows.map((e) => e.toString()).join(',')}],"cnt":${this.cnt}}`;
+		const parts: string[] = [];
+		parts.push(`"name":"${escapeJsonString(this.name)}"`);
+		parts.push(`"schema":${this.schema.toString()}`);
+		parts.push(`"rows":[${this.rows.map((e) => e.toString()).join(',')}]`);
+		parts.push(`"cnt":${this.cnt}`);
+		if (this.rlsEnabled) parts.push(`"rlsEnabled":true`);
+		if (this.rlsForced) parts.push(`"rlsForced":true`);
+		if (this.policies.length > 0) {
+			const polStrs = this.policies.map(p => {
+				const pe: string[] = [];
+				pe.push(`"name":"${escapeJsonString(p.name)}"`);
+				pe.push(`"cmd":"${escapeJsonString(p.cmd)}"`);
+				pe.push(`"permissive":${p.permissive}`);
+				pe.push(`"roles":[${p.roles.map(r => `"${escapeJsonString(r)}"`).join(',')}]`);
+				if (p.using !== null && p.using !== undefined) pe.push(`"using":${JSON.stringify(p.using)}`);
+				if (p.withCheck !== null && p.withCheck !== undefined) pe.push(`"withCheck":${JSON.stringify(p.withCheck)}`);
+				return `{${pe.join(',')}}`;
+			});
+			parts.push(`"policies":[${polStrs.join(',')}]`);
+		}
+		if (this.hooks.length > 0) {
+			const hookStrs = this.hooks.map(h => {
+				const he: string[] = [];
+				he.push(`"name":"${escapeJsonString(h.name)}"`);
+				he.push(`"table":"${escapeJsonString(h.table)}"`);
+				he.push(`"event":"${escapeJsonString(h.event)}"`);
+				he.push(`"timing":"${escapeJsonString(h.timing)}"`);
+				he.push(`"language":"${escapeJsonString(h.language)}"`);
+				he.push(`"body":"${escapeJsonString(h.body)}"`);
+				he.push(`"enabled":${h.enabled}`);
+				return `{${he.join(',')}}`;
+			});
+			parts.push(`"hooks":[${hookStrs.join(',')}]`);
+		}
+		return `{${parts.join(',')}}`;
 	}
 	setAll(rows: DBRowWithID[]) {
 		this.rows = rows;
@@ -490,9 +566,32 @@ function importDBTableFromString(str: string): DBTable {
 	if (!a || typeof a !== 'object') throw new Error('Invalid table data format');
 	if (typeof a.name !== 'string') throw new Error('Table data missing "name" field');
 	if (!a.schema || typeof a.schema !== 'object') throw new Error('Table data missing "schema" field');
-	return new DBTable(a.name, DBSchema.fromStrMap(new Map<string, string>(Object.entries(a.schema))), a.cnt ?? 0, (a.rows as Array<any> ?? []).map((e) => DBRowWithID.fromJSON(e)));
+	const policies: RLSPolicyData[] = Array.isArray(a.policies) ? a.policies.map((p: any) => ({
+		name: p.name || '',
+		cmd: p.cmd || 'ALL',
+		permissive: p.permissive !== false,
+		roles: Array.isArray(p.roles) ? p.roles : [],
+		using: p.using ?? null,
+		withCheck: p.withCheck ?? null,
+	})) : [];
+	const hooks: TableHook[] = Array.isArray(a.hooks) ? a.hooks.map((h: any) => ({
+		name: h.name || '',
+		table: h.table || '',
+		event: h.event || 'INSERT',
+		timing: h.timing || 'BEFORE',
+		language: h.language || 'js',
+		body: h.body || '',
+		enabled: h.enabled !== false,
+	})) : [];
+	return new DBTable(
+		a.name,
+		DBSchema.fromStrMap(new Map<string, string>(Object.entries(a.schema))),
+		a.cnt ?? 0,
+		(a.rows as Array<any> ?? []).map((e) => DBRowWithID.fromJSON(e)),
+		{ rlsEnabled: !!a.rlsEnabled, rlsForced: !!a.rlsForced, policies, hooks }
+	);
 }
 
 // 导出类型定义
-export type { DBType };
+export type { DBType, TableHook, RLSPolicyData };
 export { DBTypeDef, Email, Phone, UUID, dbtypeMaker, DBFullType, DBRow, DBTable, DBSchema, DBRowWithID, importDBTableFromString };
