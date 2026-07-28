@@ -1,6 +1,6 @@
 {
 	"name": "@wbw121124/wbwdb",
-	"version": "1.0.0",
+	"version": "1.1.0",
 	"description": "A new database lib by wbw121124",
 	"type": "module",
 	"main": "./lib/index.js",
