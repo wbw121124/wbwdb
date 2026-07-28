@@ -1,6 +1,6 @@
 {
 	"name": "@wbw121124/wbwdb",
-	"version": "1.1.1",
+	"version": "1.2.1",
 	"description": "A new database lib by wbw121124",
 	"type": "module",
 	"main": "./lib/index.js",
@@ -32,10 +32,11 @@
 		"doc": "rimraf docs && typedoc",
 		"dev": "npm run doc && npm run build && npm run test",
 		"test": "node --experimental-strip-types test/demo.ts && node --experimental-strip-types test/auth-demo.ts && node test/cli-test.js",
-		"release": "npm run build && npm run doc || git add . && git commit -m hi && git push || npm publish",
-		"release:patch": "git add . && git commit -m hi || npm version patch --git-tag-version && npm run release",
-		"release:minor": "git add . && git commit -m hi || npm version minor --git-tag-version && npm run release",
-		"release:major": "git add . && git commit -m hi || npm version major --git-tag-version && npm run release",
+		"git-force-commit": "git add . && (git commit -m \"chore: release\" || echo.)",
+		"release": "npm run build && npm run doc && npm run git-force-commit && git push && npm publish",
+		"release:patch": "npm version patch --git-tag-version && npm run release",
+		"release:minor": "npm version minor --git-tag-version && npm run release",
+		"release:major": "npm version major --git-tag-version && npm run release",
 		"output": "node script/format_src.js"
 	},
 	"devDependencies": {
