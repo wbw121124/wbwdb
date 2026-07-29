@@ -35,9 +35,9 @@ export class ApiKeyManager {
 	}
 
 
-	create(userId: string, options?: ApiKeyOptions): ApiKeyResult {
+	async create(userId: string, options?: ApiKeyOptions): Promise<ApiKeyResult> {
 		const rawKey = generateApiKey();
-		const keyHash = hashApiKey(rawKey);
+		const keyHash = await hashApiKey(rawKey);
 		const id = uuidv4();
 
 		const apiKey: ApiKey = {
@@ -58,11 +58,11 @@ export class ApiKeyManager {
 		return { key: rawKey, apiKey };
 	}
 
-	validate(key: string): ApiKeyValidation {
+	async validate(key: string): Promise<ApiKeyValidation> {
 		const keyHash = hashApiKey(key);
 
 		for (const apiKey of this.apiKeys.values()) {
-			if (apiKey.keyHash === keyHash && apiKey.isActive) {
+			if (apiKey.keyHash === await keyHash && apiKey.isActive) {
 				if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
 					return { valid: false, userId: '', permissions: [] };
 				}

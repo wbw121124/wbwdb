@@ -59,7 +59,6 @@ export class Auth {
 		this.sessions = new SessionManager(options?.sessionExpiresInMs, `${authDir}/sessions.json`);
 		this.apiKeys = new ApiKeyManager(`${authDir}/api_keys.json`);
 		this.oauth = new OAuthClient();
-		this.apiKeys = new ApiKeyManager();
 	}
 
 	async init(): Promise<void> {

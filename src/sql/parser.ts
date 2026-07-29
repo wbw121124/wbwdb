@@ -399,7 +399,10 @@ export class Parser {
 			return this.parseCreateHook();
 		}
 		this.expect('KEYWORD', 'TABLE');
-		const ifNotExists = this.match('KEYWORD', 'IF') && (this.expect('KEYWORD', 'NOT'), this.expect('KEYWORD', 'EXISTS'), true);
+		const ifNotExists = this.match('KEYWORD', 'IF') && (
+			this.expect('KEYWORD', 'NOT'),
+			this.expect('KEYWORD', 'EXISTS'),
+			true);
 		const table = this.parseTableName();
 		const columns: ColumnDef[] = [];
 		let primaryKey: string[] | undefined;
