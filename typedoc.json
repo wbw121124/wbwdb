@@ -22,5 +22,11 @@
 		"Interface",
 		"TypeAlias"
 	],
-	"lang": "zh"
+	"lang": "zh",
+	"highlightLanguages": [
+		"sql",
+		"bash",
+		"ts",
+		"typescript"
+	]
 }

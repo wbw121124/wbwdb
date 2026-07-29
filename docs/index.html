@@ -116,19 +116,7 @@
 <h2 id="hooks-钩子" class="tsd-anchor-link">Hooks (钩子)<a href="#hooks-钩子" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <p>支持在 INSERT、UPDATE、DELETE 操作前后执行自定义逻辑。钩子使用 QuickJS 沙箱隔离执行 JS 代码，确保安全性。</p>
 <h3 id="语法" class="tsd-anchor-link">语法<a href="#语法" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="sql">-- 创建钩子
-CREATE HOOK <hook_name> ON <table>
-  FOR INSERT|UPDATE|DELETE
-  BEFORE|AFTER
-  AS JS $$ <javascript_code> $$;
-
-CREATE HOOK <hook_name> ON <table>
-  FOR INSERT|UPDATE|DELETE
-  BEFORE|AFTER
-  AS SQL $$ <sql_condition> $$;
-
--- 删除钩子
-DROP HOOK <hook_name> ON <table>;
+<pre><code class="sql"><span class="hl-3">-- 创建钩子</span><br/><span class="hl-4">CREATE</span><span class="hl-1"> HOOK &lt;hook_name&gt; </span><span class="hl-4">ON</span><span class="hl-1"> &lt;</span><span class="hl-4">table</span><span class="hl-1">&gt;</span><br/><span class="hl-1">  </span><span class="hl-4">FOR</span><span class="hl-1"> </span><span class="hl-4">INSERT</span><span class="hl-1">|</span><span class="hl-4">UPDATE</span><span class="hl-1">|</span><span class="hl-4">DELETE</span><br/><span class="hl-1">  </span><span class="hl-4">BEFORE</span><span class="hl-1">|</span><span class="hl-4">AFTER</span><br/><span class="hl-1">  </span><span class="hl-4">AS</span><span class="hl-1"> JS $$ &lt;javascript_code&gt; $$;</span><br/><br/><span class="hl-4">CREATE</span><span class="hl-1"> HOOK &lt;hook_name&gt; </span><span class="hl-4">ON</span><span class="hl-1"> &lt;</span><span class="hl-4">table</span><span class="hl-1">&gt;</span><br/><span class="hl-1">  </span><span class="hl-4">FOR</span><span class="hl-1"> </span><span class="hl-4">INSERT</span><span class="hl-1">|</span><span class="hl-4">UPDATE</span><span class="hl-1">|</span><span class="hl-4">DELETE</span><br/><span class="hl-1">  </span><span class="hl-4">BEFORE</span><span class="hl-1">|</span><span class="hl-4">AFTER</span><br/><span class="hl-1">  </span><span class="hl-4">AS</span><span class="hl-1"> </span><span class="hl-4">SQL</span><span class="hl-1"> $$ &lt;sql_condition&gt; $$;</span><br/><br/><span class="hl-3">-- 删除钩子</span><br/><span class="hl-4">DROP</span><span class="hl-1"> HOOK &lt;hook_name&gt; </span><span class="hl-4">ON</span><span class="hl-1"> &lt;</span><span class="hl-4">table</span><span class="hl-1">&gt;;</span>
 </code><button type="button">复制</button></pre>
 
 <h3 id="js-钩子全局变量" class="tsd-anchor-link">JS 钩子全局变量<a href="#js-钩子全局变量" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
@@ -159,25 +147,7 @@ DROP HOOK <hook_name> ON <table>;
 </tbody>
 </table>
 <h3 id="示例" class="tsd-anchor-link">示例<a href="#示例" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
-<pre><code class="sql">-- INSERT 前自动填充字段
-CREATE HOOK auto_timestamp ON orders FOR INSERT BEFORE AS JS $$
-  row.created_at = new Date().toISOString();
-$$;
-
--- UPDATE 前验证数据
-CREATE HOOK check_balance ON accounts FOR UPDATE BEFORE AS JS $$
-  if (row.balance < 0) abort('余额不能为负数');
-$$;
-
--- DELETE 前阻止删除
-CREATE HOOK protect_admin ON users FOR DELETE BEFORE AS JS $$
-  if (row.role === 'admin') abort('不能删除管理员');
-$$;
-
--- AFTER 钩子（仅执行，不阻止操作）
-CREATE HOOK log_change ON orders FOR INSERT AFTER AS JS $$
-  console.log('新订单: ' + row.id);
-$$;
+<pre><code class="sql"><span class="hl-3">-- INSERT 前自动填充字段</span><br/><span class="hl-4">CREATE</span><span class="hl-1"> HOOK auto_timestamp </span><span class="hl-4">ON</span><span class="hl-1"> orders </span><span class="hl-4">FOR</span><span class="hl-1"> </span><span class="hl-4">INSERT</span><span class="hl-1"> </span><span class="hl-4">BEFORE</span><span class="hl-1"> </span><span class="hl-4">AS</span><span class="hl-1"> JS $$</span><br/><span class="hl-1">  row.created_at = new </span><span class="hl-4">Date</span><span class="hl-1">().toISOString();</span><br/><span class="hl-1">$$;</span><br/><br/><span class="hl-3">-- UPDATE 前验证数据</span><br/><span class="hl-4">CREATE</span><span class="hl-1"> HOOK check_balance </span><span class="hl-4">ON</span><span class="hl-1"> accounts </span><span class="hl-4">FOR</span><span class="hl-1"> </span><span class="hl-4">UPDATE</span><span class="hl-1"> </span><span class="hl-4">BEFORE</span><span class="hl-1"> </span><span class="hl-4">AS</span><span class="hl-1"> JS $$</span><br/><span class="hl-1">  </span><span class="hl-4">if</span><span class="hl-1"> (row.balance &lt; </span><span class="hl-5">0</span><span class="hl-1">) </span><span class="hl-4">abort</span><span class="hl-1">(</span><span class="hl-2">&#39;余额不能为负数&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">$$;</span><br/><br/><span class="hl-3">-- DELETE 前阻止删除</span><br/><span class="hl-4">CREATE</span><span class="hl-1"> HOOK protect_admin </span><span class="hl-4">ON</span><span class="hl-1"> users </span><span class="hl-4">FOR</span><span class="hl-1"> </span><span class="hl-4">DELETE</span><span class="hl-1"> </span><span class="hl-4">BEFORE</span><span class="hl-1"> </span><span class="hl-4">AS</span><span class="hl-1"> JS $$</span><br/><span class="hl-1">  </span><span class="hl-4">if</span><span class="hl-1"> (row.role === </span><span class="hl-2">&#39;admin&#39;</span><span class="hl-1">) </span><span class="hl-4">abort</span><span class="hl-1">(</span><span class="hl-2">&#39;不能删除管理员&#39;</span><span class="hl-1">);</span><br/><span class="hl-1">$$;</span><br/><br/><span class="hl-3">-- AFTER 钩子（仅执行，不阻止操作）</span><br/><span class="hl-4">CREATE</span><span class="hl-1"> HOOK log_change </span><span class="hl-4">ON</span><span class="hl-1"> orders </span><span class="hl-4">FOR</span><span class="hl-1"> </span><span class="hl-4">INSERT</span><span class="hl-1"> </span><span class="hl-4">AFTER</span><span class="hl-1"> </span><span class="hl-4">AS</span><span class="hl-1"> JS $$</span><br/><span class="hl-1">  console.log(</span><span class="hl-2">&#39;新订单: &#39;</span><span class="hl-1"> + row.id);</span><br/><span class="hl-1">$$;</span>
 </code><button type="button">复制</button></pre>
 
 <h3 id="安全特性" class="tsd-anchor-link">安全特性<a href="#安全特性" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
