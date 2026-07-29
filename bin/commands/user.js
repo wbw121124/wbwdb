@@ -76,7 +76,8 @@ export async function listUsers(dbPath, opts) {
 		if (opts?.json) {
 			displayJSON([]);
 		} else {
-			console.log('No users found.');
+			const cli = CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
+			cli.info('No users found.');
 		}
 		return;
 	}
@@ -120,14 +121,15 @@ export async function userInfo(dbPath, username, opts) {
 	if (opts?.json) {
 		displayJSON(data);
 	} else {
-		console.log(`User: ${user.username}`);
-		console.log(`  ID:       ${user.id}`);
-		console.log(`  Email:    ${user.email}`);
-		console.log(`  Active:   ${user.isActive}`);
-		console.log(`  Created:  ${user.createdAt}`);
-		console.log(`  Updated:  ${user.updatedAt}`);
+		const cli = CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
+		cli.print(`User: ${user.username}`);
+		cli.print(`  ID:       ${user.id}`);
+		cli.print(`  Email:    ${user.email}`);
+		cli.print(`  Active:   ${user.isActive}`);
+		cli.print(`  Created:  ${user.createdAt}`);
+		cli.print(`  Updated:  ${user.updatedAt}`);
 		if (roles.length > 0) {
-			console.log(`  Roles:    ${roles.map(r => r.name).join(', ')}`);
+			cli.print(`  Roles:    ${roles.map(r => r.name).join(', ')}`);
 		}
 	}
 }
@@ -265,11 +267,11 @@ export async function loginUser(dbPath, opts, parentCli) {
 				sessionId: result.sessionId,
 			});
 		} else {
-			console.log(`  User:      ${result.user.username}`);
-			console.log(`  ID:        ${result.user.id}`);
-			console.log(`  Token:     ${result.token}`);
+			cli.print(`  User:      ${result.user.username}`);
+			cli.print(`  ID:        ${result.user.id}`);
+			cli.print(`  Token:     ${result.token}`);
 			if (result.sessionId) {
-				console.log(`  Session:   ${result.sessionId}`);
+				cli.print(`  Session:   ${result.sessionId}`);
 			}
 		}
 	} catch (err) {

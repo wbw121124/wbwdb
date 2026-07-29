@@ -744,17 +744,17 @@ export class Parser {
 		this.expect('KEYWORD', 'ON');
 		const table = this.parseTableName();
 		this.expect('KEYWORD', 'FOR');
-		let event: CreateHookStatement['event'] = 'INSERT';
+		let event: CreateHookStatement['event'];
 		if (this.match('KEYWORD', 'INSERT')) event = 'INSERT';
 		else if (this.match('KEYWORD', 'UPDATE')) event = 'UPDATE';
 		else if (this.match('KEYWORD', 'DELETE')) event = 'DELETE';
 		else throw this.error('Expected INSERT, UPDATE, or DELETE after FOR');
-		let timing: CreateHookStatement['timing'] = 'BEFORE';
+		let timing: CreateHookStatement['timing'];
 		if (this.match('KEYWORD', 'BEFORE')) timing = 'BEFORE';
 		else if (this.match('KEYWORD', 'AFTER')) timing = 'AFTER';
 		else throw this.error('Expected BEFORE or AFTER');
 		this.expect('KEYWORD', 'AS');
-		let language: CreateHookStatement['language'] = 'js';
+		let language: CreateHookStatement['language'];
 		let body: string;
 		if (this.match('KEYWORD', 'JS')) {
 			language = 'js';

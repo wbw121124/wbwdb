@@ -13,6 +13,24 @@ import type {
 	AuthContext, AuthOptions,
 } from './types.js';
 
+interface ParsedRow {
+	id?: string;
+	username?: string;
+	email?: string;
+	passwordHash?: string;
+	isActive?: string | boolean;
+	createdAt?: string;
+	updatedAt?: string;
+	metadata?: string;
+	name?: string;
+	description?: string;
+	permissions?: string;
+	userId?: string;
+	roleId?: string;
+	assignedAt?: string;
+	[key: string]: unknown;
+}
+
 export class Auth {
 	private db: wbwdbManager;
 	private jwt: JwtManager;
@@ -50,18 +68,18 @@ export class Auth {
 		try {
 			const fs = await import('node:fs/promises');
 			const content = await fs.readFile(tablePath, 'utf-8');
-			const table = JSON.parse(content) as any;
+			const table = JSON.parse(content) as { rows?: Array<{ row?: ParsedRow }> };
 			if (table?.rows) {
 				for (const row of table.rows) {
-					const r = row.row || row;
+					const r: ParsedRow = row.row || row;
 					const user: UserWithPassword = {
-						id: r.id,
-						username: r.username,
-						email: r.email,
-						passwordHash: r.passwordHash,
+						id: r.id ?? '',
+						username: r.username ?? '',
+						email: r.email ?? '',
+						passwordHash: r.passwordHash ?? '',
 						isActive: r.isActive === 'true' || r.isActive === true,
-						createdAt: r.createdAt,
-						updatedAt: r.updatedAt,
+						createdAt: r.createdAt ?? '',
+						updatedAt: r.updatedAt ?? '',
 						metadata: r.metadata || '{}',
 					};
 					this.users.set(user.id, user);
@@ -79,16 +97,16 @@ export class Auth {
 		try {
 			const fs = await import('node:fs/promises');
 			const content = await fs.readFile(tablePath, 'utf-8');
-			const table = JSON.parse(content) as any;
+			const table = JSON.parse(content) as { rows?: Array<{ row?: ParsedRow }> };
 			if (table?.rows) {
 				for (const row of table.rows) {
-					const r = row.row || row;
+					const r: ParsedRow = row.row || row;
 					const role: Role = {
-						id: r.id,
-						name: r.name,
+						id: r.id ?? '',
+						name: r.name ?? '',
 						description: r.description || '',
 						permissions: r.permissions ? JSON.parse(r.permissions) : [],
-						createdAt: r.createdAt,
+						createdAt: r.createdAt ?? '',
 					};
 					this.roles.set(role.id, role);
 					this.rolesByName.set(role.name, role.id);
@@ -104,15 +122,15 @@ export class Auth {
 		try {
 			const fs = await import('node:fs/promises');
 			const content = await fs.readFile(tablePath, 'utf-8');
-			const table = JSON.parse(content) as any;
+			const table = JSON.parse(content) as { rows?: Array<{ row?: ParsedRow }> };
 			if (table?.rows) {
 				for (const row of table.rows) {
-					const r = row.row || row;
+					const r: ParsedRow = row.row || row;
 					const ur: UserRole = {
-						id: r.id,
-						userId: r.userId,
-						roleId: r.roleId,
-						assignedAt: r.assignedAt,
+						id: r.id ?? '',
+						userId: r.userId ?? '',
+						roleId: r.roleId ?? '',
+						assignedAt: r.assignedAt ?? '',
 					};
 					this.userRoles.set(ur.id, ur);
 				}
@@ -182,7 +200,7 @@ export class Auth {
 	}
 
 	private toUser(u: UserWithPassword): User {
-		const { passwordHash, ...user } = u;
+		const { passwordHash: _temp, ...user } = u;
 		return user;
 	}
 
@@ -497,7 +515,7 @@ export class Auth {
 	// ── OAuth ───────────────────────────────────────────
 
 	setOAuthConfig(provider: OAuthProvider, config: OAuthConfig): void {
-		(this.oauth as any).configs.set(provider, config);
+		this.oauth.setConfig(provider, config);
 	}
 
 	async getOAuthUrl(provider: OAuthProvider, redirectUri: string, scopes?: string[]): Promise<OAuthUrlResult> {
@@ -541,7 +559,8 @@ export class Auth {
 			userId = user.id;
 		}
 
-		const user = this.users.get(userId)!;
+		const user = this.users.get(userId);
+		if (!user) throw new Error('User not found');
 		const { roles, permissions } = this.getUserRolesAndPermissions(user.id);
 		const token = this.jwt.sign({
 			sub: user.id,

@@ -1,12 +1,14 @@
 // bin/lib/display.js
+import { CliTools } from 'wbw-cli-tools-lib';
 
 /**
  * 将数据格式化为表格字符串并打印
  * @param {object} result - 查询结果对象 { columns: string[], rows: object[], row_count: number }
  */
 export function displayTable(result) {
+	const cli = CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
 	if (!result || !result.columns || result.columns.length === 0) {
-		console.log('No data to display.');
+		cli.info('No data to display.');
 		return;
 	}
 
@@ -32,12 +34,12 @@ export function displayTable(result) {
 	const headerLine = columns.map(col => padRight(col, colWidths[col])).join(' | ');
 	const separator = columns.map(col => '-'.repeat(colWidths[col])).join('-+-');
 
-	console.log(headerLine);
-	console.log(separator);
+	cli.print(headerLine);
+	cli.print(separator);
 
 	// 3. 构建数据行
 	if (rows.length === 0) {
-		console.log('(0 rows)');
+		cli.info('(0 rows)');
 	} else {
 		rows.forEach(row => {
 			const line = columns.map(col => {
@@ -45,10 +47,10 @@ export function displayTable(result) {
 				const strVal = val === null || val === undefined ? '' : String(val);
 				return padRight(strVal, colWidths[col]);
 			}).join(' | ');
-			console.log(line);
+			cli.print(line);
 		});
 
-		console.log(`\n(${rows.length} row${rows.length !== 1 ? 's' : ''})`);
+		cli.print(`\n(${rows.length} row${rows.length !== 1 ? 's' : ''})`);
 	}
 }
 
@@ -57,7 +59,8 @@ export function displayTable(result) {
  * @param {any} data 
  */
 export function displayJSON(data) {
-	console.log(JSON.stringify(data, null, 2));
+	const cli = CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
+	cli.print(JSON.stringify(data, null, 2));
 }
 
 /**

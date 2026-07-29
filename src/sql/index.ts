@@ -58,7 +58,7 @@ export class WBWDBSQL {
 		this.wbwdbTables = wbwdbTables;
 		const initial = new Map<string, Row[]>();
 		const schemas = new Map<string, Map<string, { name: string; notNull: boolean; defaultValue: unknown }>>();
-		const rlsStates = new Map<string, { enabled: boolean; forced: boolean; policies: any[] }>();
+		const rlsStates = new Map<string, { enabled: boolean; forced: boolean; policies: Array<{ name: string; cmd: string; permissive: boolean; roles: string[]; using: unknown; withCheck: unknown }> }>();
 		const hooksStates = new Map<string, TableHook[]>();
 		for (const [name, table] of wbwdbTables) {
 			const rows: Row[] = table.rows.map(r => {
@@ -112,7 +112,7 @@ export class WBWDBSQL {
 			lastResult = this.executor.execute(ast, params);
 		}
 		this.syncToWBWDB();
-		return lastResult!;
+		return lastResult ?? { columns: [], rows: [], rowCount: 0, command: 'UNKNOWN' };
 	}
 
 	parse(sql: string) {
@@ -148,16 +148,17 @@ export class WBWDBSQL {
 			const store = this.executor.getTableStore(name);
 			if (!store) continue;
 
-			const schemaMap = new Map<string, DBFullType<any>>();
+			const schemaMap = new Map<string, DBFullType<any>>(); // eslint-disable-line @typescript-eslint/no-explicit-any
 			for (const [colName, colDef] of store.schema.entries()) {
 				const capitalizedName = colDef.name.charAt(0).toUpperCase() + colDef.name.slice(1);
-				const dbType = dbtypes.get(colDef.name) ?? dbtypes.get(capitalizedName) ?? dbtypes.get('String')!;
+				const dbType = dbtypes.get(colDef.name) ?? dbtypes.get(capitalizedName) ?? dbtypes.values().next().value;
+				if (!dbType) continue;
 				schemaMap.set(colName, new DBFullType(dbType, colDef.notNull, colDef.defaultValue ?? undefined));
 			}
 			const schema = new DBSchema(schemaMap);
 
 			const rows: DBRowWithID[] = store.rows.map(r => {
-				const rowMap = new Map<string, any>();
+				const rowMap = new Map<string, unknown>();
 				for (const [k, v] of Object.entries(r)) {
 					rowMap.set(k, v);
 				}

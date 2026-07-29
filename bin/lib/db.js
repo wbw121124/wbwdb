@@ -1,6 +1,5 @@
 // bin/lib/db.js
 import { wbwdbManager } from '../../lib/index.js';
-import path from 'node:path';
 import fs from 'node:fs/promises';
 
 /**

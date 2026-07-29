@@ -50,7 +50,9 @@ export async function shell(dbPath, parentCli) {
 	cli.newline();
 
 	const rl = readline.createInterface({
+		// eslint-disable-next-line no-undef
 		input: process.stdin,
+		// eslint-disable-next-line no-undef
 		output: process.stdout,
 		prompt: 'wbwdb> ',
 		completer: (line) => {
@@ -97,6 +99,7 @@ export async function shell(dbPath, parentCli) {
 		}
 
 		if (input === '\\clear') {
+			// eslint-disable-next-line no-undef
 			process.stdout.write('\x1Bc');
 			rl.prompt();
 			return;
@@ -122,14 +125,14 @@ export async function shell(dbPath, parentCli) {
 			if (!table) {
 				cli.error(`Table "${tableName}" not found.`);
 			} else {
-				console.log(`Table: ${tableName}`);
-				console.log(`Rows:  ${table.rows.length}`);
-				console.log('Schema:');
+				cli.print(`Table: ${tableName}`);
+				cli.print(`Rows:  ${table.rows.length}`);
+				cli.print('Schema:');
 				for (const [col, type] of table.schema.map.entries()) {
-					console.log(`  ${col}: ${type.t.name}`);
+					cli.print(`  ${col}: ${type.t.name}`);
 				}
 				if (table.rows.length > 0) {
-					console.log('\nSample data:');
+					cli.print('\nSample data:');
 					displayTable({
 						columns: [...table.schema.map.keys()],
 						rows: table.rows.slice(0, 5).map(r => Object.fromEntries(r.row)),
@@ -163,15 +166,16 @@ export async function shell(dbPath, parentCli) {
 		try {
 			const result = db.query(input);
 			displayTable(result);
-		} catch (err) {
-			cli.error(err.message);
-		}
-		rl.prompt();
-	});
+	} catch (err) {
+		cli.error(err.message);
+	}
+	rl.prompt();
+});
 
-	rl.on('close', () => {
-		process.exit(0);
-	});
+rl.on('close', () => {
+	// eslint-disable-next-line no-undef
+	process.exit(0);
+});
 }
 
 export async function query(dbPath, sql, opts, parentCli) {
@@ -191,6 +195,7 @@ export async function query(dbPath, sql, opts, parentCli) {
 		} else {
 			cli.error(err.message);
 		}
+		// eslint-disable-next-line no-undef
 		process.exit(1);
 	}
 }

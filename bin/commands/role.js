@@ -84,12 +84,15 @@ async function getRoleList(auth) {
 				}
 			}
 		}
-	} catch {}
+	} catch {
+		// ignore errors
+	}
 
 	return [...roleMap.values()];
 }
 
 export async function listRoles(dbPath, opts) {
+	const cli = CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
 	const { auth } = await initDBWithAuth(dbPath);
 	const roles = await getRoleList(auth);
 
@@ -97,7 +100,7 @@ export async function listRoles(dbPath, opts) {
 		if (opts?.json) {
 			displayJSON([]);
 		} else {
-			console.log('No roles found.');
+			cli.info('No roles found.');
 		}
 		return;
 	}

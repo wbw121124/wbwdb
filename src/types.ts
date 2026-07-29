@@ -5,6 +5,7 @@ import { v4 as uuidv4, validate as uuidValidate } from 'uuid';
  * @template T - 类型参数，表示对应的 TypeScript 类型
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 interface DBType<T = any> {
 	/** 类型名称 */
 	name: string;
@@ -129,7 +130,7 @@ function escapeJsonString(str: string): string {
 function isToStringable(value: unknown): value is { toString(): string } {
 	return value !== null &&
 		value !== undefined &&
-		typeof (value as any).toString === 'function';
+		typeof (value as Record<string, unknown>).toString === 'function';
 }
 
 /**
@@ -158,7 +159,7 @@ function dbtypeMaker<T>(name: string, defaultValue?: T): DBTypeDef<T> {
 			return value as T;
 		},
 		(value: T): string => {
-			return isToStringable(value) ? (value as any).toString() :
+			return isToStringable(value) ? (value as { toString(): string }).toString() :
 				(typeof value === 'object' && value !== null
 					? value as object
 					: Object(value)).toString();
@@ -339,7 +340,7 @@ class DBFullType<T> {
 }
 
 class DBSchema {
-	constructor(public map: Map<string, DBFullType<any>>) { }
+	constructor(public map: Map<string, DBFullType<unknown>>) { }
 	toString() {
 		const a = [];
 		for (const [key, value] of this.map.entries())
@@ -348,7 +349,7 @@ class DBSchema {
 	}
 	static fromStrMap(v: Map<string, string>): DBSchema {
 		// 将 Map<string,string> 转换为 Map<string, DBFullType<any>>
-		const map = new Map<string, DBFullType<any>>();
+		const map = new Map<string, DBFullType<unknown>>();
 		for (const [key, value] of v.entries()) {
 			// 需要根据字符串值找到对应的DBType
 			const dbType = dbtypes.get(value);
@@ -368,9 +369,9 @@ class DBSchema {
 
 /** 数据表行类型 */
 class DBRow {
-	constructor(public row: Map<string, any>) { }
-	static fromObject(obj: Record<string, any>): DBRow {
-		const map = new Map<string, any>();
+	constructor(public row: Map<string, any>) { } // eslint-disable-line @typescript-eslint/no-explicit-any
+	static fromObject(obj: Record<string, any>): DBRow { // eslint-disable-line @typescript-eslint/no-explicit-any
+		const map = new Map<string, any>(); // eslint-disable-line @typescript-eslint/no-explicit-any
 		for (const [key, value] of Object.entries(obj)) {
 			map.set(key, value);
 		}
@@ -408,7 +409,7 @@ class DBRow {
 }
 
 class DBRowWithID extends DBRow {
-	constructor(row: Map<string, any>, public id: number) {
+	constructor(row: Map<string, any>, public id: number) { // eslint-disable-line @typescript-eslint/no-explicit-any
 		super(row);
 	}
 	toString() {
@@ -424,15 +425,13 @@ class DBRowWithID extends DBRow {
 			row: this.row
 		}
 	}
-	static fromJSON(json: any): DBRowWithID {
-		if (typeof json === 'string') {
-			json = JSON.parse(json);
-		}
+	static fromJSON(json: any): DBRowWithID { // eslint-disable-line @typescript-eslint/no-explicit-any
+		const parsed: Record<string, any> = typeof json === 'string' ? JSON.parse(json) : json; // eslint-disable-line @typescript-eslint/no-explicit-any
 
 		// 处理 {"id": 1, "row": {...}}
-		if (json && typeof json === 'object' && 'id' in json && 'row' in json) {
-			const row = DBRow.fromObject(json.row);
-			return new DBRowWithID(row.row, json.id);
+		if (parsed && typeof parsed === 'object' && 'id' in parsed && 'row' in parsed) {
+			const row = DBRow.fromObject(parsed.row);
+			return new DBRowWithID(row.row, parsed.id);
 		}
 
 		throw new Error('Invalid DBRowWithID JSON format');
@@ -456,8 +455,8 @@ interface RLSPolicyData {
 	cmd: string;
 	permissive: boolean;
 	roles: string[];
-	using: any | null;
-	withCheck: any | null;
+	using: unknown;
+	withCheck: unknown;
 }
 
 /** 数据表类型 */
@@ -557,16 +556,16 @@ class DBTable {
 }
 
 function importDBTableFromString(str: string): DBTable {
-	let a: any;
+	let a: Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 	try {
-		a = JSON.parse(str);
+		a = JSON.parse(str) as Record<string, any>; // eslint-disable-line @typescript-eslint/no-explicit-any
 	} catch {
 		throw new Error('Failed to parse table JSON data');
 	}
 	if (!a || typeof a !== 'object') throw new Error('Invalid table data format');
 	if (typeof a.name !== 'string') throw new Error('Table data missing "name" field');
 	if (!a.schema || typeof a.schema !== 'object') throw new Error('Table data missing "schema" field');
-	const policies: RLSPolicyData[] = Array.isArray(a.policies) ? a.policies.map((p: any) => ({
+	const policies: RLSPolicyData[] = Array.isArray(a.policies) ? a.policies.map((p: Record<string, any>) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
 		name: p.name || '',
 		cmd: p.cmd || 'ALL',
 		permissive: p.permissive !== false,
@@ -574,7 +573,7 @@ function importDBTableFromString(str: string): DBTable {
 		using: p.using ?? null,
 		withCheck: p.withCheck ?? null,
 	})) : [];
-	const hooks: TableHook[] = Array.isArray(a.hooks) ? a.hooks.map((h: any) => ({
+	const hooks: TableHook[] = Array.isArray(a.hooks) ? a.hooks.map((h: Record<string, any>) => ({ // eslint-disable-line @typescript-eslint/no-explicit-any
 		name: h.name || '',
 		table: h.table || '',
 		event: h.event || 'INSERT',
@@ -587,7 +586,7 @@ function importDBTableFromString(str: string): DBTable {
 		a.name,
 		DBSchema.fromStrMap(new Map<string, string>(Object.entries(a.schema))),
 		a.cnt ?? 0,
-		(a.rows as Array<any> ?? []).map((e) => DBRowWithID.fromJSON(e)),
+		(a.rows as Array<any> ?? []).map((e) => DBRowWithID.fromJSON(e)), // eslint-disable-line @typescript-eslint/no-explicit-any
 		{ rlsEnabled: !!a.rlsEnabled, rlsForced: !!a.rlsForced, policies, hooks }
 	);
 }

@@ -46,6 +46,10 @@ export class OAuthClient {
 		}
 	}
 
+	setConfig(provider: OAuthProvider, config: OAuthConfig): void {
+		this.configs.set(provider, config);
+	}
+
 	getAuthorizationUrl(provider: OAuthProvider, redirectUri: string, scopes?: string[]): OAuthUrlResult {
 		const config = this.configs.get(provider);
 		if (!config) throw new Error(`OAuth provider "${provider}" not configured`);

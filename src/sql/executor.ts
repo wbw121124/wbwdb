@@ -69,7 +69,7 @@ export class SQLExecutor {
 	private superUser = true;
 	private authContext: { userId: string; username: string; roles: string[]; permissions: string[] } | null = null;
 
-	constructor(existingTables?: Map<string, Row[]>, existingSchemas?: Map<string, Map<string, { name: string; notNull: boolean; defaultValue: unknown }>>, existingRls?: Map<string, { enabled: boolean; forced: boolean; policies: any[] }>, existingHooks?: Map<string, TableHook[]>) {
+	constructor(existingTables?: Map<string, Row[]>, existingSchemas?: Map<string, Map<string, { name: string; notNull: boolean; defaultValue: unknown }>>, existingRls?: Map<string, { enabled: boolean; forced: boolean; policies: Array<{ name: string; cmd: string; permissive: boolean; roles: string[]; using: unknown; withCheck: unknown }> }>, existingHooks?: Map<string, TableHook[]>) {
 		// Sync existing tables into memory
 		if (existingTables) {
 			for (const [name, rows] of existingTables) {
@@ -94,8 +94,8 @@ export class SQLExecutor {
 							cmd: p.cmd,
 							permissive: p.permissive,
 							roles: p.roles,
-							using: p.using,
-							withCheck: p.withCheck,
+							using: p.using as Expression | null,
+							withCheck: p.withCheck as Expression | null,
 						});
 					}
 				}
@@ -178,7 +178,8 @@ export class SQLExecutor {
 
 		// WHERE
 		if (stmt.where) {
-			rows = rows.filter(row => this.evalExpr(stmt.where!, row, params) as boolean);
+			const where = stmt.where;
+			rows = rows.filter(row => this.evalExpr(where, row, params) as boolean);
 		}
 
 		// GROUP BY
@@ -193,7 +194,8 @@ export class SQLExecutor {
 
 		// HAVING
 		if (stmt.having) {
-			groupedRows = groupedRows.filter(row => this.evalExpr(stmt.having!, row, params) as boolean);
+			const having = stmt.having;
+			groupedRows = groupedRows.filter(row => this.evalExpr(having, row, params) as boolean);
 		}
 
 		// ORDER BY
@@ -377,8 +379,12 @@ export class SQLExecutor {
 
 		for (const row of rows) {
 			const key = stmt.groupBy.map(e => this.evalExpr(e, row)).map(v => JSON.stringify(v)).join('|||');
-			if (!groups.has(key)) groups.set(key, []);
-			groups.get(key)!.push(row);
+			let group = groups.get(key);
+			if (!group) {
+				group = [];
+				groups.set(key, group);
+			}
+			group.push(row);
 		}
 
 		// If no groups formed (empty table + aggregate), still produce one row for aggregates
@@ -450,19 +456,23 @@ export class SQLExecutor {
 				try {
 					const fn = new Function('row', 'oldRow', 'tableName', hook.body);
 					fn(row, oldRow ?? null, tableName);
-				} catch (err: any) {
-					if (err.message === '__WBWDB_HOOK_ABORT__') throw err;
-					throw new Error(`Hook "${hook.name}" error: ${err.message}`);
+				} catch (err: unknown) {
+					const message = err instanceof Error ? err.message : String(err);
+					if (message === '__WBWDB_HOOK_ABORT__') throw err;
+					throw new Error(`Hook "${hook.name}" error: ${message}`, { cause: err });
 				}
 			} else if (hook.language === 'sql') {
 				try {
 					const parser = new Parser(`SELECT 1 WHERE ${hook.body}`);
 					const ast = parser.parse();
-					const result = this.evalExpr((ast as any).where, row);
+					const whereExpr = (ast as { where?: Expression }).where;
+					if (!whereExpr) throw new Error('__WBWDB_HOOK_ABORT__');
+					const result = this.evalExpr(whereExpr, row);
 					if (!result) throw new Error('__WBWDB_HOOK_ABORT__');
-				} catch (err: any) {
-					if (err.message === '__WBWDB_HOOK_ABORT__') throw new Error(`Hook "${hook.name}" blocked the operation`);
-					throw new Error(`Hook "${hook.name}" error: ${err.message}`);
+				} catch (err: unknown) {
+					const message = err instanceof Error ? err.message : String(err);
+					if (message === '__WBWDB_HOOK_ABORT__') throw new Error(`Hook "${hook.name}" blocked the operation`, { cause: err });
+					throw new Error(`Hook "${hook.name}" error: ${message}`, { cause: err });
 				}
 			}
 		}
@@ -475,8 +485,9 @@ export class SQLExecutor {
 				try {
 					const fn = new Function('row', 'tableName', hook.body);
 					fn(row, tableName);
-				} catch (err: any) {
-					console.error(`Hook "${hook.name}" error: ${err.message}`);
+				} catch (err: unknown) {
+					const message = err instanceof Error ? err.message : String(err);
+					console.error(`Hook "${hook.name}" error: ${message}`);
 				}
 			}
 		}
@@ -509,8 +520,9 @@ export class SQLExecutor {
 
 				// ON CONFLICT
 				if (stmt.conflictColumns && stmt.conflictColumns.length > 0) {
+					const conflictColumns = stmt.conflictColumns;
 					const conflictIdx = store.rows.findIndex(existing => {
-						return stmt.conflictColumns!.every(col => existing[col] === row[col]);
+						return conflictColumns.every(col => existing[col] === row[col]);
 					});
 					if (conflictIdx !== -1) {
 						if (stmt.conflictAction === 'NOTHING') {
@@ -681,23 +693,26 @@ export class SQLExecutor {
 				break;
 			case 'DROP_COLUMN':
 				if (stmt.column) {
-					store.schema.delete(stmt.column);
+					const columnName = stmt.column;
+					store.schema.delete(columnName);
 					for (const row of store.rows) {
-						delete row[stmt.column!];
+						delete row[columnName];
 					}
 				}
 				break;
 			case 'RENAME_COLUMN':
 				if (stmt.column && stmt.newName) {
-					const def = store.schema.get(stmt.column);
+					const oldCol = stmt.column;
+					const newCol = stmt.newName;
+					const def = store.schema.get(oldCol);
 					if (def) {
-						store.schema.delete(stmt.column);
-						store.schema.set(stmt.newName, def);
+						store.schema.delete(oldCol);
+						store.schema.set(newCol, def);
 					}
 					for (const row of store.rows) {
-						if (row[stmt.column!] !== undefined) {
-							row[stmt.newName!] = row[stmt.column!];
-							delete row[stmt.column!];
+						if (row[oldCol] !== undefined) {
+							row[newCol] = row[oldCol];
+							delete row[oldCol];
 						}
 					}
 				}
@@ -746,8 +761,8 @@ export class SQLExecutor {
 				break;
 			case 'ROLLBACK':
 				if (this.transactions.length > 0) {
-					const snapshot = this.transactions.pop()!;
-					this.tables = snapshot;
+					const snapshot = this.transactions.pop();
+					if (snapshot) this.tables = snapshot;
 				}
 				break;
 			case 'SAVEPOINT':
@@ -1309,17 +1324,18 @@ export class SQLExecutor {
 	syncTo(wbwdbTables: Map<string, DBTable>): void {
 		for (const [name, store] of this.tables) {
 			// Build schema
-			const schemaMap = new Map<string, DBFullType<any>>();
+			const schemaMap = new Map<string, DBFullType<any>>(); // eslint-disable-line @typescript-eslint/no-explicit-any
 			for (const [colName, colDef] of store.schema.entries()) {
 				const capitalizedName = colDef.name.charAt(0).toUpperCase() + colDef.name.slice(1);
-				const dbType = dbtypes.get(colDef.name) ?? dbtypes.get(capitalizedName) ?? dbtypes.get('String')!;
+				const dbType = dbtypes.get(colDef.name) ?? dbtypes.get(capitalizedName) ?? dbtypes.values().next().value;
+				if (!dbType) continue;
 				schemaMap.set(colName, new DBFullType(dbType, colDef.notNull, colDef.defaultValue ?? undefined));
 			}
 			const schema = new DBSchema(schemaMap);
 
 			// Build rows
 			const rows: DBRowWithID[] = store.rows.map(r => {
-				const rowMap = new Map<string, any>();
+				const rowMap = new Map<string, unknown>();
 				for (const [k, v] of Object.entries(r)) {
 					if (k === 'id') continue;
 					rowMap.set(k, v);

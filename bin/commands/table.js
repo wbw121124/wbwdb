@@ -109,14 +109,15 @@ export async function tableInfo(dbPath, tableName, opts) {
 	if (opts?.json) {
 		displayJSON(data);
 	} else {
-		console.log(`Table: ${tableName}`);
-		console.log(`Rows:  ${table.rows.length}`);
-		console.log('\nSchema:');
+		const cli = CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
+		cli.print(`Table: ${tableName}`);
+		cli.print(`Rows:  ${table.rows.length}`);
+		cli.print('\nSchema:');
 		for (const [col, type] of table.schema.map.entries()) {
-			console.log(`  ${col}: ${type.t.name}`);
+			cli.print(`  ${col}: ${type.t.name}`);
 		}
 		if (table.rows.length > 0) {
-			console.log('\nData:');
+			cli.print('\nData:');
 			displayTable({
 				columns: [...table.schema.map.keys()],
 				rows: table.rows.slice(0, 20).map(r => Object.fromEntries(r.row)),

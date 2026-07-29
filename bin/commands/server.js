@@ -59,9 +59,9 @@ export async function startServer(dbPath, port, host, parentCli) {
 							roles: payload.roles,
 							permissions: payload.permissions
 						};
-					} catch (e) {
-						// Token 无效，作为未认证用户(public)继续
-					}
+				} catch {
+					// Token 无效，作为未认证用户(public)继续
+				}
 				} else if (apiKeyHeader) {
 					const validation = await auth.validateApiKey(apiKeyHeader);
 					if (validation.valid) {
@@ -110,7 +110,7 @@ export async function startServer(dbPath, port, host, parentCli) {
 					sendJSON(res, 404, { error: 'Not Found' });
 				}
 			} catch (err) {
-				console.error('Server Error:', err);
+				cli.error(`Server Error: ${err.message}`);
 				const statusCode = err.message.includes('not found') || err.message.includes('Invalid') ? 400 : 500;
 				sendJSON(res, statusCode, { error: err.message });
 			}
@@ -128,6 +128,7 @@ export async function startServer(dbPath, port, host, parentCli) {
 	} catch (err) {
 		cli.spinnerFail('Failed to initialize database.');
 		cli.error(err.message);
+		// eslint-disable-next-line no-undef
 		process.exit(1);
 	}
 }
@@ -140,7 +141,7 @@ function parseBody(req) {
 		req.on('end', () => {
 			try {
 				resolve(data ? JSON.parse(data) : {});
-			} catch (e) {
+			} catch {
 				reject(new Error('Invalid JSON body'));
 			}
 		});
