@@ -59,10 +59,10 @@ export class ApiKeyManager {
 	}
 
 	async validate(key: string): Promise<ApiKeyValidation> {
-		const keyHash = hashApiKey(key);
+		const keyHash = await hashApiKey(key);
 
 		for (const apiKey of this.apiKeys.values()) {
-			if (apiKey.keyHash === await keyHash && apiKey.isActive) {
+			if (apiKey.keyHash === keyHash && apiKey.isActive) {
 				if (apiKey.expiresAt && new Date(apiKey.expiresAt) < new Date()) {
 					return { valid: false, userId: '', permissions: [] };
 				}

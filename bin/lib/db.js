@@ -36,7 +36,7 @@ export async function initDBWithAuth(dbPath, authOptions = {}) {
 	// 注意：Auth 模块依赖于 db.rootdir 已经设置好
 	if (!db.auth) {
 		// eslint-disable-next-line no-undef
-		const jwtSecret = authOptions.jwtSecret || process.env.WBWDB_JWT_SECRET || hashApiKey(dbPath + `${new Date()}_${Math.random()}_${myRandom()}`);
+		const jwtSecret = authOptions.jwtSecret || process.env.WBWDB_JWT_SECRET || hashApiKey(dbPath);
 		await db.initAuth({ ...authOptions, jwtSecret });
 	}
 
