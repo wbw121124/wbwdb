@@ -172,7 +172,8 @@ export async function shell(dbPath, parentCli) {
 		rl.prompt();
 	});
 
-	rl.on('close', () => {
+	rl.on('close', async () => {
+		await db.save();
 		// eslint-disable-next-line no-undef
 		process.exit(0);
 	});
