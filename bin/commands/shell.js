@@ -166,16 +166,16 @@ export async function shell(dbPath, parentCli) {
 		try {
 			const result = db.query(input);
 			displayTable(result);
-	} catch (err) {
-		cli.error(err.message);
-	}
-	rl.prompt();
-});
+		} catch (err) {
+			cli.error(err);
+		}
+		rl.prompt();
+	});
 
-rl.on('close', () => {
-	// eslint-disable-next-line no-undef
-	process.exit(0);
-});
+	rl.on('close', () => {
+		// eslint-disable-next-line no-undef
+		process.exit(0);
+	});
 }
 
 export async function query(dbPath, sql, opts, parentCli) {

@@ -1,4 +1,4 @@
-import { wbwdbManager, DBSchema, DBFullType, DBRow, Email, Phone, UUID, dbtypes, DBRowWithID } from '../lib/index.js';
+import { wbwdbManager, DBSchema, DBFullType, DBRow, Email, Phone, UUID, dbtypes } from '../lib/index.js';
 import * as fs from 'node:fs';
 import * as path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -59,7 +59,7 @@ function createRow(obj: Record<string, any>): DBRow {
 async function testCoreDB() {
 	console.log('\n[1] Core DB Tests');
 	const dbPath = './.test_unified_core';
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 
 	const db = new wbwdbManager(dbPath);
 	await db.init();
@@ -127,7 +127,7 @@ async function testCoreDB() {
 	await db2.dropTable('users');
 	assert(!db2.getTable('users'), 'dropTable: users removed');
 
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 }
 
 // ==========================================
@@ -136,7 +136,7 @@ async function testCoreDB() {
 async function testSQLEngine() {
 	console.log('\n[2] SQL Engine Tests');
 	const dbPath = './.test_unified_sql';
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 
 	const db = new wbwdbManager(dbPath);
 	await db.init();
@@ -207,7 +207,7 @@ async function testSQLEngine() {
 	db.query('TRUNCATE TABLE orders');
 	db.query('DROP TABLE orders');
 
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 }
 
 // ==========================================
@@ -216,7 +216,7 @@ async function testSQLEngine() {
 async function testRLS() {
 	console.log('\n[3] RLS Tests');
 	const dbPath = './.test_unified_rls';
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 
 	const db = new wbwdbManager(dbPath);
 	await db.init();
@@ -261,7 +261,7 @@ async function testRLS() {
 	db.query('DROP POLICY insert_check ON posts');
 	db.query('ALTER TABLE posts DISABLE ROW LEVEL SECURITY');
 
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 }
 
 // ==========================================
@@ -270,7 +270,7 @@ async function testRLS() {
 async function testErrorHandling() {
 	console.log('\n[4] Error Handling Tests');
 	const dbPath = './.test_unified_error';
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 
 	const db = new wbwdbManager(dbPath);
 	await db.init();
@@ -291,7 +291,7 @@ async function testErrorHandling() {
 		assert(err.message.includes('does not exist') || err.message.includes('not found'), 'missing table error: ' + err.message);
 	}
 
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 }
 
 // ==========================================
@@ -330,7 +330,7 @@ async function testTypeSafety() {
 async function testAuth() {
 	console.log('\n[6] Auth Tests');
 	const dbPath = './.test_unified_auth';
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 
 	const db = new wbwdbManager(dbPath);
 	await db.init();
@@ -413,7 +413,7 @@ async function testAuth() {
 	const afterDelete = await auth.listUsers();
 	assert(afterDelete.length === 1, 'after delete: 1 user');
 
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 }
 
 // ==========================================
@@ -424,7 +424,7 @@ async function testCLI() {
 	const cliDbDir = path.join(__dirname, '..', '.test_unified_cli');
 
 	async function cleanup() {
-		await fs.promises.rm(cliDbDir, { recursive: true, force: true }).catch(() => {});
+		await fs.promises.rm(cliDbDir, { recursive: true, force: true }).catch(() => { });
 	}
 
 	await cleanup();
@@ -540,7 +540,7 @@ async function testCLI() {
 async function testJSHooks() {
 	console.log('\n[8] JS Hook Tests');
 	const dbPath = './.test_unified_hooks';
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 
 	const db = new wbwdbManager(dbPath);
 	await db.init();
@@ -724,9 +724,9 @@ async function testJSHooks() {
 	let insertFired = false;
 	db.on('afterInsert', 'event_test', () => { insertFired = true; });
 	db.query("INSERT INTO event_test (name) VALUES ('test')");
-	assert(insertFired === true, 'afterInsert event fired');
+	assert(insertFired, 'afterInsert event fired');
 
-	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => {});
+	await fs.promises.rm(dbPath, { recursive: true, force: true }).catch(() => { });
 }
 
 // ==========================================

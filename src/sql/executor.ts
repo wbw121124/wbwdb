@@ -167,11 +167,11 @@ export class SQLExecutor {
 			case 'CREATE_POLICY': return this.execCreatePolicy(stmt);
 			case 'DROP_POLICY': return this.execDropPolicy(stmt);
 			case 'ALTER_POLICY': return this.execAlterPolicy(stmt);
-		case 'ENABLE_RLS': return this.execEnableRLS(stmt);
-		case 'SET_ROLE': return this.execSetRole(stmt);
-		case 'CREATE_HOOK': return this.execCreateHook(stmt);
-		case 'DROP_HOOK': return this.execDropHook(stmt);
-		case 'SHOW_HOOKS': return this.execShowHooks(stmt);
+			case 'ENABLE_RLS': return this.execEnableRLS(stmt);
+			case 'SET_ROLE': return this.execSetRole(stmt);
+			case 'CREATE_HOOK': return this.execCreateHook(stmt);
+			case 'DROP_HOOK': return this.execDropHook(stmt);
+			case 'SHOW_HOOKS': return this.execShowHooks(stmt);
 			default: throw new Error(`Unsupported statement type: ${(stmt as SQLNode).type}`);
 		}
 	}
