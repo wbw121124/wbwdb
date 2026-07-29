@@ -55,12 +55,18 @@ export class Auth {
 			expiresIn: options?.jwtExpiresIn,
 			issuer: options?.jwtIssuer,
 		});
-		this.sessions = new SessionManager(options?.sessionExpiresInMs);
+		const authDir = `${this.db.rootdir}/auth`;
+		this.sessions = new SessionManager(options?.sessionExpiresInMs, `${authDir}/sessions.json`);
+		this.apiKeys = new ApiKeyManager(`${authDir}/api_keys.json`);
 		this.oauth = new OAuthClient();
 		this.apiKeys = new ApiKeyManager();
 	}
 
 	async init(): Promise<void> {
+		// [FIX] Init persistent stores
+		await this.sessions.init();
+		await this.apiKeys.init();
+
 		await this.loadUsers();
 		await this.loadRoles();
 		await this.loadUserRoles();
@@ -525,18 +531,21 @@ export class Auth {
 		return this.oauth.getAuthorizationUrl(provider, redirectUri, scopes);
 	}
 
-	async handleOAuthCallback(provider: OAuthProvider, code: string, redirectUri: string): Promise<OAuthUserInfo> {
+	/**
+	 * @todo 完成 state 验证
+	 */
+	async handleOAuthCallback(provider: OAuthProvider, code: string, redirectUri: string, _state?: string): Promise<OAuthUserInfo> {
 		const tokenResult = await this.oauth.exchangeCode(provider, code, redirectUri);
 		return this.oauth.getUserInfo(provider, tokenResult.accessToken);
 	}
 
-	async linkOAuth(_userId: string, provider: OAuthProvider, code: string, redirectUri: string): Promise<void> {
-		await this.handleOAuthCallback(provider, code, redirectUri);
+	async linkOAuth(_userId: string, provider: OAuthProvider, code: string, redirectUri: string, state?: string): Promise<void> {
+		await this.handleOAuthCallback(provider, code, redirectUri, state);
 		// Store the OAuth link (simplified - in production you'd store tokens)
 	}
 
-	async loginWithOAuth(provider: OAuthProvider, code: string, redirectUri: string): Promise<AuthResult> {
-		const oauthUser = await this.handleOAuthCallback(provider, code, redirectUri);
+	async loginWithOAuth(provider: OAuthProvider, code: string, redirectUri: string, state?: string): Promise<AuthResult> {
+		const oauthUser = await this.handleOAuthCallback(provider, code, redirectUri, state);
 
 		// Try to find existing user by email
 		let userId = this.usersByEmail.get(oauthUser.email);

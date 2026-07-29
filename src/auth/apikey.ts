@@ -1,9 +1,39 @@
 import { v4 as uuidv4 } from 'uuid';
 import { hashApiKey, generateApiKey } from './crypto.js';
 import type { ApiKey, ApiKeyOptions, ApiKeyResult, ApiKeyValidation } from './types.js';
+import * as fs from 'node:fs/promises';
+import * as path from 'node:path';
 
 export class ApiKeyManager {
 	private apiKeys: Map<string, ApiKey> = new Map();
+	private storagePath: string | null = null;
+
+	constructor(storagePath?: string) {
+		this.storagePath = storagePath || null;
+	}
+
+	async init(): Promise<void> {
+		if (!this.storagePath) return;
+		try {
+			await fs.mkdir(path.dirname(this.storagePath), { recursive: true });
+			const content = await fs.readFile(this.storagePath, 'utf-8');
+			const data = JSON.parse(content);
+			if (Array.isArray(data)) {
+				for (const item of data) {
+					this.apiKeys.set(item.id, item);
+				}
+			}
+		} catch (_e) {
+			// Start fresh
+		}
+	}
+
+	async save(): Promise<void> {
+		if (!this.storagePath) return;
+		const data = Array.from(this.apiKeys.values());
+		await fs.writeFile(this.storagePath, JSON.stringify(data, null, 2), 'utf-8');
+	}
+
 
 	create(userId: string, options?: ApiKeyOptions): ApiKeyResult {
 		const rawKey = generateApiKey();
@@ -23,6 +53,7 @@ export class ApiKeyManager {
 		};
 
 		this.apiKeys.set(id, apiKey);
+		this.save().catch(console.error);
 
 		return { key: rawKey, apiKey };
 	}
@@ -56,6 +87,7 @@ export class ApiKeyManager {
 
 		apiKey.isActive = false;
 		this.apiKeys.set(keyId, apiKey);
+		this.save().catch(console.error);
 		return true;
 	}
 
@@ -68,11 +100,16 @@ export class ApiKeyManager {
 				count++;
 			}
 		}
+		if (count > 0)
+			this.save().catch(console.error);
 		return count;
 	}
 
 	delete(keyId: string): boolean {
-		return this.apiKeys.delete(keyId);
+		const result = this.apiKeys.delete(keyId);
+		if (result)
+			this.save().catch(console.error);
+		return result;
 	}
 
 	listForUser(userId: string): ApiKey[] {

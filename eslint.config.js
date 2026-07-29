@@ -9,7 +9,9 @@ export default tseslint.config(
 			'@typescript-eslint/no-explicit-any': 'warn',
 			'@typescript-eslint/no-unused-vars': ['error', {
 				argsIgnorePattern: '^_',
-				varsIgnorePattern: "^_"
+				varsIgnorePattern: "^_",
+				caughtErrors: "none",
+				caughtErrorsIgnorePattern: "^_",
 			}],
 			'@typescript-eslint/explicit-function-return-type': 'off',
 			'@typescript-eslint/no-non-null-assertion': 'warn',

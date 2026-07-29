@@ -59,9 +59,9 @@ export async function startServer(dbPath, port, host, parentCli) {
 							roles: payload.roles,
 							permissions: payload.permissions
 						};
-				} catch {
-					// Token 无效，作为未认证用户(public)继续
-				}
+					} catch {
+						// Token 无效，作为未认证用户(public)继续
+					}
 				} else if (apiKeyHeader) {
 					const validation = await auth.validateApiKey(apiKeyHeader);
 					if (validation.valid) {
@@ -89,9 +89,14 @@ export async function startServer(dbPath, port, host, parentCli) {
 					const { sql, params } = body;
 					if (!sql) throw new Error('Missing "sql" in request body');
 
-					// Pass authContext per-request to avoid cross-request race condition
-					const result = db.query(sql, params, authContext);
+					// [FIX] Security: Prevent DDL statements via HTTP API
+					const trimmedSql = sql.trim().toUpperCase();
+					const dangerousKeywords = ['DROP ', 'CREATE ', 'ALTER ', 'TRUNCATE ', 'GRANT ', 'REVOKE '];
+					if (dangerousKeywords.some(kw => trimmedSql.startsWith(kw))) {
+						throw new Error('Forbidden: DDL statements are not allowed via HTTP API.');
+					}
 
+					const result = db.query(sql, params, authContext);
 					sendJSON(res, 200, result);
 				}
 				else if (pathname === '/api/tables' && req.method === 'GET') {

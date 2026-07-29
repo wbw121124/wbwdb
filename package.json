@@ -29,7 +29,7 @@
 		"build": "rolldown -c",
 		"build:watch": "rolldown -c --watch",
 		"clean": "rm -rf lib",
-		"lint": "eslint src/",
+		"lint": "eslint src/ bin/",
 		"doc": "rimraf docs && typedoc",
 		"dev": "npm run doc && npm run build && npm run test",
 		"test": "node --experimental-strip-types test/test.ts",
