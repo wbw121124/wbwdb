@@ -17,12 +17,6 @@ export async function initDB(dbPath) {
 	return db;
 }
 
-const myRandom = function () {
-	const array = new Uint32Array(1);
-	const randomNum = crypto.getRandomValues(array)[0];
-	return randomNum;
-}
-
 /**
  * 初始化带有 Auth 功能的数据库管理器
  * @param {string} dbPath - 数据库根路径
