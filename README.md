@@ -144,6 +144,68 @@ addType<MyType>('MyType', defaultValue);
 - 其他: `COALESCE`, `NULLIF`, `CASE WHEN`, `IN`, `BETWEEN`, `LIKE`, `EXISTS`, `CAST`, `DISTINCT`
 - 事务: `BEGIN`, `COMMIT`, `ROLLBACK`
 - RLS (行级安全): `CREATE POLICY`, `ENABLE ROW LEVEL SECURITY`, `SET ROLE`
+- Hooks (钩子): `CREATE HOOK`, `DROP HOOK`（支持 JS 和 SQL 钩子）
+
+## Hooks (钩子)
+
+支持在 INSERT、UPDATE、DELETE 操作前后执行自定义逻辑。钩子使用 QuickJS 沙箱隔离执行 JS 代码，确保安全性。
+
+### 语法
+
+```sql
+-- 创建钩子
+CREATE HOOK <hook_name> ON <table>
+  FOR INSERT|UPDATE|DELETE
+  BEFORE|AFTER
+  AS JS $$ <javascript_code> $$;
+
+CREATE HOOK <hook_name> ON <table>
+  FOR INSERT|UPDATE|DELETE
+  BEFORE|AFTER
+  AS SQL $$ <sql_condition> $$;
+
+-- 删除钩子
+DROP HOOK <hook_name> ON <table>;
+```
+
+### JS 钩子全局变量
+
+| 变量       | 说明                                      |
+| ---------- | ----------------------------------------- |
+| `row`      | 当前行数据（BEFORE 钩子中可修改）         |
+| `oldRow`   | UPDATE 时的旧行数据，INSERT/DELETE 时为 `null` |
+| `tableName`| 当前表名                                  |
+| `abort(msg)` | 终止操作并抛出错误                      |
+
+### 示例
+
+```sql
+-- INSERT 前自动填充字段
+CREATE HOOK auto_timestamp ON orders FOR INSERT BEFORE AS JS $$
+  row.created_at = new Date().toISOString();
+$$;
+
+-- UPDATE 前验证数据
+CREATE HOOK check_balance ON accounts FOR UPDATE BEFORE AS JS $$
+  if (row.balance < 0) abort('余额不能为负数');
+$$;
+
+-- DELETE 前阻止删除
+CREATE HOOK protect_admin ON users FOR DELETE BEFORE AS JS $$
+  if (row.role === 'admin') abort('不能删除管理员');
+$$;
+
+-- AFTER 钩子（仅执行，不阻止操作）
+CREATE HOOK log_change ON orders FOR INSERT AFTER AS JS $$
+  console.log('新订单: ' + row.id);
+$$;
+```
+
+### 安全特性
+
+- JS 钩子在 QuickJS WebAssembly 沙箱中执行
+- 无法访问 Node.js API（`require`、`fs`、`process` 等均被隔离）
+- `abort()` 函数可终止操作并回滚数据变更
 
 ## 文件结构
 

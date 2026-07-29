@@ -1,8 +1,25 @@
 import * as fs from 'node:fs';
 import * as types from './types.js';
-import { WBWDBSQL, type QueryResult } from './sql/index.js';
+import { WBWDBSQL, type QueryResult, ensureHookSandbox, hookSandboxReady } from './sql/index.js';
 import { Auth } from './auth/index.js';
 import type { AuthOptions } from './auth/types.js';
+
+/**
+ * 校验表名，防止路径穿越攻击
+ * @param name - 表名
+ * @throws 当表名包含非法字符时抛出错误
+ */
+function validateTableName(name: string): void {
+	if (!name || typeof name !== 'string') {
+		throw new Error('表名不能为空');
+	}
+	if (!/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+		throw new Error(`表名 "${name}" 包含非法字符。表名只能包含字母、数字和下划线，且必须以字母或下划线开头`);
+	}
+	if (name.includes('..') || name.includes('/') || name.includes('\\')) {
+		throw new Error(`表名 "${name}" 包含路径穿越字符`);
+	}
+}
 
 /**
  * wbwdb 数据库管理器
@@ -69,6 +86,10 @@ export class wbwdbManager {
 		await fs.promises.mkdir(rootPath, { recursive: true });
 		this.rootdir = rootPath;
 
+		// Ensure QuickJS WASM is loaded for JS hooks
+		ensureHookSandbox();
+		if (hookSandboxReady) await hookSandboxReady;
+
 		// 读取或创建索引文件 index.json
 		const indexPath = rootPath + '/index.json';
 		try {
@@ -99,6 +120,7 @@ export class wbwdbManager {
 	 * @private
 	 */
 	private async loadTable(tableName: string): Promise<void> {
+		validateTableName(tableName);
 		const tablePath = `${this.rootdir}/table/${tableName}/data.json`;
 		try {
 			const content = await fs.promises.readFile(tablePath, 'utf-8');
@@ -129,6 +151,7 @@ export class wbwdbManager {
 	 * @public
 	 */
 	async createTable(name: string, schema: types.DBSchema): Promise<types.DBTable> {
+		validateTableName(name);
 		if (this.dbTables.has(name)) {
 			throw new Error(`表 "${name}" 已存在`);
 		}
@@ -156,6 +179,7 @@ export class wbwdbManager {
 	 * @private
 	 */
 	private async saveTable(name: string): Promise<void> {
+		validateTableName(name);
 		const table = this.dbTables.get(name);
 		if (!table) {
 			throw new Error(`表 "${name}" 不存在`);
@@ -227,6 +251,7 @@ export class wbwdbManager {
 	 * @public
 	 */
 	async dropTable(name: string): Promise<void> {
+		validateTableName(name);
 		if (!this.dbTables.has(name)) {
 			throw new Error(`表 "${name}" 不存在`);
 		}
@@ -260,7 +285,7 @@ export class wbwdbManager {
 	 * console.log(result.rows);
 	 * ```
 	 */
-	query(sql: string, params?: unknown[]): QueryResult {
+	query(sql: string, params?: unknown[], authContext?: { userId: string; username: string; roles: string[]; permissions: string[] } | null): QueryResult {
 		if (!this.sql) {
 			this.sql = new WBWDBSQL(this.dbTables);
 		}
@@ -277,7 +302,7 @@ export class wbwdbManager {
 			if (tableName) this.emit('beforeDelete', tableName);
 		}
 
-		const result = this.sql.execute(sql, params);
+		const result = this.sql.execute(sql, params, authContext);
 
 		// Emit after events for DML statements
 		if (trimmed.startsWith('INSERT')) {
@@ -396,6 +421,7 @@ export * from './types.js';
 export { WBWDBSQL, Parser, SQLExecutor, TableStore } from './sql/index.js';
 export type { QueryResult, Row, SQLNode } from './sql/index.js';
 export { Auth } from './auth/index.js';
+export { hashApiKey } from './auth/crypto.js';
 export type {
 	AuthOptions, User, RegisterInput, AuthResult,
 	TokenOptions, TokenPayload, SessionResult, SessionOptions, SessionPayload,

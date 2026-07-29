@@ -2,8 +2,15 @@ import { Parser } from './parser.js';
 import { SQLExecutor, type QueryResult, type Row } from './executor.js';
 import { DBTable, DBSchema, DBFullType, DBRowWithID, dbtypes } from '../types.js';
 import type { TableHook, RLSPolicyData } from '../types.js';
+import { initHookSandbox } from './hook-sandbox.js';
 
 export type { QueryResult, Row } from './executor.js';
+
+let hookSandboxReady: Promise<void> | null = null;
+
+function ensureHookSandbox(): void {
+	if (!hookSandboxReady) hookSandboxReady = initHookSandbox;
+}
 
 function splitStatements(sql: string): string[] {
 	const result: string[] = [];
@@ -91,7 +98,9 @@ export class WBWDBSQL {
 		this.executor = new SQLExecutor(initial, schemas, rlsStates, hooksStates);
 	}
 
-	execute(sql: string, params?: unknown[]): QueryResult {
+	execute(sql: string, params?: unknown[], authContext?: { userId: string; username: string; roles: string[]; permissions: string[] } | null): QueryResult {
+		ensureHookSandbox();
+
 		const trimmed = sql.trim();
 		if (!trimmed) throw new Error('Empty SQL statement');
 
@@ -99,7 +108,7 @@ export class WBWDBSQL {
 		if (stmts.length === 1) {
 			const parser = new Parser(trimmed);
 			const ast = parser.parse();
-			const result = this.executor.execute(ast, params);
+			const result = this.executor.execute(ast, params, authContext);
 			this.syncToWBWDB();
 			return result;
 		}
@@ -109,7 +118,7 @@ export class WBWDBSQL {
 			if (!stmt.trim()) continue;
 			const parser = new Parser(stmt.trim());
 			const ast = parser.parse();
-			lastResult = this.executor.execute(ast, params);
+			lastResult = this.executor.execute(ast, params, authContext);
 		}
 		this.syncToWBWDB();
 		return lastResult ?? { columns: [], rows: [], rowCount: 0, command: 'UNKNOWN' };
@@ -208,3 +217,4 @@ export class WBWDBSQL {
 export { Parser } from './parser.js';
 export { SQLExecutor, TableStore } from './executor.js';
 export type { SQLNode } from './ast.js';
+export { ensureHookSandbox, hookSandboxReady };

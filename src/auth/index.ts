@@ -48,7 +48,10 @@ export class Auth {
 
 	constructor(db: wbwdbManager, options?: AuthOptions) {
 		this.db = db;
-		this.jwt = new JwtManager(options?.jwtSecret, {
+		if (!options?.jwtSecret) {
+			throw new Error('jwtSecret is required in AuthOptions. Refusing to start without an explicit JWT secret.');
+		}
+		this.jwt = new JwtManager(options.jwtSecret, {
 			expiresIn: options?.jwtExpiresIn,
 			issuer: options?.jwtIssuer,
 		});

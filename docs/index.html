@@ -111,6 +111,80 @@
 <li>其他: <code>COALESCE</code>, <code>NULLIF</code>, <code>CASE WHEN</code>, <code>IN</code>, <code>BETWEEN</code>, <code>LIKE</code>, <code>EXISTS</code>, <code>CAST</code>, <code>DISTINCT</code></li>
 <li>事务: <code>BEGIN</code>, <code>COMMIT</code>, <code>ROLLBACK</code></li>
 <li>RLS (行级安全): <code>CREATE POLICY</code>, <code>ENABLE ROW LEVEL SECURITY</code>, <code>SET ROLE</code></li>
+<li>Hooks (钩子): <code>CREATE HOOK</code>, <code>DROP HOOK</code>（支持 JS 和 SQL 钩子）</li>
+</ul>
+<h2 id="hooks-钩子" class="tsd-anchor-link">Hooks (钩子)<a href="#hooks-钩子" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
+<p>支持在 INSERT、UPDATE、DELETE 操作前后执行自定义逻辑。钩子使用 QuickJS 沙箱隔离执行 JS 代码，确保安全性。</p>
+<h3 id="语法" class="tsd-anchor-link">语法<a href="#语法" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="sql">-- 创建钩子
+CREATE HOOK <hook_name> ON <table>
+  FOR INSERT|UPDATE|DELETE
+  BEFORE|AFTER
+  AS JS $$ <javascript_code> $$;
+
+CREATE HOOK <hook_name> ON <table>
+  FOR INSERT|UPDATE|DELETE
+  BEFORE|AFTER
+  AS SQL $$ <sql_condition> $$;
+
+-- 删除钩子
+DROP HOOK <hook_name> ON <table>;
+</code><button type="button">复制</button></pre>
+
+<h3 id="js-钩子全局变量" class="tsd-anchor-link">JS 钩子全局变量<a href="#js-钩子全局变量" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<table>
+<thead>
+<tr>
+<th>变量</th>
+<th>说明</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>row</code></td>
+<td>当前行数据（BEFORE 钩子中可修改）</td>
+</tr>
+<tr>
+<td><code>oldRow</code></td>
+<td>UPDATE 时的旧行数据，INSERT/DELETE 时为 <code>null</code></td>
+</tr>
+<tr>
+<td><code>tableName</code></td>
+<td>当前表名</td>
+</tr>
+<tr>
+<td><code>abort(msg)</code></td>
+<td>终止操作并抛出错误</td>
+</tr>
+</tbody>
+</table>
+<h3 id="示例" class="tsd-anchor-link">示例<a href="#示例" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<pre><code class="sql">-- INSERT 前自动填充字段
+CREATE HOOK auto_timestamp ON orders FOR INSERT BEFORE AS JS $$
+  row.created_at = new Date().toISOString();
+$$;
+
+-- UPDATE 前验证数据
+CREATE HOOK check_balance ON accounts FOR UPDATE BEFORE AS JS $$
+  if (row.balance < 0) abort('余额不能为负数');
+$$;
+
+-- DELETE 前阻止删除
+CREATE HOOK protect_admin ON users FOR DELETE BEFORE AS JS $$
+  if (row.role === 'admin') abort('不能删除管理员');
+$$;
+
+-- AFTER 钩子（仅执行，不阻止操作）
+CREATE HOOK log_change ON orders FOR INSERT AFTER AS JS $$
+  console.log('新订单: ' + row.id);
+$$;
+</code><button type="button">复制</button></pre>
+
+<h3 id="安全特性" class="tsd-anchor-link">安全特性<a href="#安全特性" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h3>
+<ul>
+<li>JS 钩子在 QuickJS WebAssembly 沙箱中执行</li>
+<li>无法访问 Node.js API（<code>require</code>、<code>fs</code>、<code>process</code> 等均被隔离）</li>
+<li><code>abort()</code> 函数可终止操作并回滚数据变更</li>
 </ul>
 <h2 id="文件结构" class="tsd-anchor-link">文件结构<a href="#文件结构" aria-label="永久链接" class="tsd-anchor-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><use href="assets/icons.svg#icon-anchor"></use></svg></a></h2>
 <pre><code><span class="hl-6">data</span><span class="hl-1">/</span><br/><span class="hl-1">  </span><span class="hl-6">dbroot</span><span class="hl-1">/</span><br/><span class="hl-1">    </span><span class="hl-6">index</span><span class="hl-1">.</span><span class="hl-6">json</span><span class="hl-1">                      # </span><span class="hl-6">表索引</span><br/><span class="hl-1">    </span><span class="hl-6">table</span><span class="hl-1">/&lt;</span><span class="hl-6">table_name</span><span class="hl-1">&gt;/</span><span class="hl-6">data</span><span class="hl-1">.</span><span class="hl-6">json</span><span class="hl-1">    # </span><span class="hl-6">表数据</span>
@@ -151,6 +225,13 @@
 <li><a href="#带认证"><span>带认证</span></a></li></ul></li>
 <li><a href="#内置类型"><span>内置类型</span></a></li>
 <li><a href="#sql-支持"><span>SQL 支持</span></a></li>
+<li><a href="#hooks-钩子"><span>Hooks (钩子)</span></a></li>
+<li>
+<ul>
+<li><a href="#语法"><span>语法</span></a></li>
+<li><a href="#js-钩子全局变量"><span>JS 钩子全局变量</span></a></li>
+<li><a href="#示例"><span>示例</span></a></li>
+<li><a href="#安全特性"><span>安全特性</span></a></li></ul></li>
 <li><a href="#文件结构"><span>文件结构</span></a></li>
 <li><a href="#开发"><span>开发</span></a></li>
 <li><a href="#license"><span>License</span></a></li></ul></div></details></div>

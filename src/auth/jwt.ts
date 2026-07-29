@@ -1,7 +1,6 @@
 import jwt from 'jsonwebtoken';
 import type { TokenPayload, TokenOptions } from './types.js';
 
-const DEFAULT_SECRET = 'wbwdb-default-secret-change-me';
 const DEFAULT_EXPIRES_IN = '24h';
 const DEFAULT_ISSUER = 'wbwdb';
 
@@ -12,8 +11,11 @@ export class JwtManager {
 		issuer: string;
 	};
 
-	constructor(secret?: string, options?: { expiresIn?: string; issuer?: string }) {
-		this.secret = secret || DEFAULT_SECRET;
+	constructor(secret: string, options?: { expiresIn?: string; issuer?: string }) {
+		if (!secret) {
+			throw new Error('jwtSecret is required. Refusing to start without an explicit secret.');
+		}
+		this.secret = secret;
 		this.defaultOptions = {
 			expiresIn: options?.expiresIn || DEFAULT_EXPIRES_IN,
 			issuer: options?.issuer || DEFAULT_ISSUER,

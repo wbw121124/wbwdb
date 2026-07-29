@@ -11,6 +11,7 @@ import type {
 import { DBTable, DBSchema, DBFullType, DBRowWithID, dbtypes } from '../types.js';
 import type { TableHook, RLSPolicyData } from '../types.js';
 import { Parser } from './parser.js';
+import { runJSHookSandbox, runAfterJSHookSandbox } from './hook-sandbox.js';
 
 // ── Types ──────────────────────────────────────────────
 
@@ -126,7 +127,31 @@ export class SQLExecutor {
 	}
 
 	/** Execute a parsed SQL statement */
-	execute(stmt: SQLNode, params?: unknown[]): QueryResult {
+	execute(stmt: SQLNode, params?: unknown[], authContext?: { userId: string; username: string; roles: string[]; permissions: string[] } | null): QueryResult {
+		// Per-call auth context override (for thread-safe concurrent requests)
+		let previousAuthContext: { userId: string; username: string; roles: string[]; permissions: string[] } | null = undefined as unknown as null;
+		let previousRole: string = '';
+		let previousSuperUser: boolean = false;
+		const usePerCall = authContext !== undefined;
+		if (usePerCall) {
+			previousAuthContext = this.authContext;
+			previousRole = this.currentRole;
+			previousSuperUser = this.superUser;
+			this.setAuthContext(authContext);
+		}
+		try {
+			return this.executeInner(stmt, params);
+		} finally {
+			if (usePerCall) {
+				this.authContext = previousAuthContext;
+				this.currentRole = previousRole;
+				this.superUser = previousSuperUser;
+			}
+		}
+	}
+
+	/** Internal execute (no auth context switching) */
+	private executeInner(stmt: SQLNode, params?: unknown[]): QueryResult {
 		switch (stmt.type) {
 			case 'SELECT': return this.execSelect(stmt, params);
 			case 'INSERT': return this.execInsert(stmt, params);
@@ -153,6 +178,10 @@ export class SQLExecutor {
 
 	/** Get table store, throwing if not found */
 	private getTable(name: string): TableStore {
+		// Validate table name to prevent path traversal
+		if (!name || !/^[a-zA-Z_][a-zA-Z0-9_]*$/.test(name)) {
+			throw new Error(`Invalid table name: "${name}"`);
+		}
 		const store = this.tables.get(name);
 		if (!store) throw new Error(`Table "${name}" does not exist`);
 		return store;
@@ -450,17 +479,10 @@ export class SQLExecutor {
 		return store.hooks.filter(h => h.enabled && h.event === event && h.timing === timing);
 	}
 
-	private runHooks(hooks: TableHook[], row: Row, tableName: string, oldRow?: Row): void {
+	private runHooks(hooks: TableHook[], row: Row, _tableName: string, oldRow?: Row): void {
 		for (const hook of hooks) {
 			if (hook.language === 'js') {
-				try {
-					const fn = new Function('row', 'oldRow', 'tableName', hook.body);
-					fn(row, oldRow ?? null, tableName);
-				} catch (err: unknown) {
-					const message = err instanceof Error ? err.message : String(err);
-					if (message === '__WBWDB_HOOK_ABORT__') throw err;
-					throw new Error(`Hook "${hook.name}" error: ${message}`, { cause: err });
-				}
+				runJSHookSandbox(hook.name, hook.body, row, oldRow ?? null, _tableName);
 			} else if (hook.language === 'sql') {
 				try {
 					const parser = new Parser(`SELECT 1 WHERE ${hook.body}`);
@@ -482,16 +504,12 @@ export class SQLExecutor {
 		for (const hook of hooks) {
 			if (!hook.enabled) continue;
 			if (hook.language === 'js') {
-				try {
-					const fn = new Function('row', 'tableName', hook.body);
-					fn(row, tableName);
-				} catch (err: unknown) {
-					const message = err instanceof Error ? err.message : String(err);
-					console.error(`Hook "${hook.name}" error: ${message}`);
-				}
+				runAfterJSHookSandbox(hook.name, hook.body, row, tableName);
 			}
 		}
 	}
+
+	// ── HOOKS (runHooks inline calls) ─────────────────
 
 	// ── INSERT ──────────────────────────────────────────
 
@@ -590,12 +608,13 @@ export class SQLExecutor {
 
 			const oldRow = { ...row };
 
-			// BEFORE UPDATE hooks
-			this.runHooks(this.getHooks(store, 'UPDATE', 'BEFORE'), row, stmt.table, oldRow);
-
+			// Apply SET clause first so hooks see the new values
 			for (const set of stmt.sets) {
 				row[set.column] = this.evalExpr(set.value, row, params);
 			}
+
+			// BEFORE UPDATE hooks
+			this.runHooks(this.getHooks(store, 'UPDATE', 'BEFORE'), row, stmt.table, oldRow);
 
 			// RLS: check WITH CHECK (does updated row pass?)
 			if (!this.rlsCheckWith(store, row, 'UPDATE')) {
@@ -916,6 +935,13 @@ export class SQLExecutor {
 	}
 
 	private execSetRole(stmt: SetRoleStatement): QueryResult {
+		// Only authenticated users with admin permission can use SET ROLE
+		if (!this.authContext) {
+			throw new Error('Permission denied: SET ROLE requires authentication');
+		}
+		if (!this.authContext.permissions.includes('admin')) {
+			throw new Error('Permission denied: SET ROLE requires admin permission');
+		}
 		this.currentRole = stmt.role;
 		if (stmt.role === 'public' || stmt.role === 'none') this.superUser = true;
 		else this.superUser = false;

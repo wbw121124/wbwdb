@@ -17,7 +17,7 @@ export function registerUserCommands(parent, cli) {
 		.description('List all users')
 		.action(async function () {
 			const opts = getRootOpts(this);
-			await listUsers(opts.db, opts);
+			await listUsers(opts.db, opts, cli);
 		});
 
 	cmd
@@ -26,7 +26,7 @@ export function registerUserCommands(parent, cli) {
 		.description('Show user details')
 		.action(async function (name) {
 			const opts = getRootOpts(this);
-			await userInfo(opts.db, name, opts);
+			await userInfo(opts.db, name, opts, cli);
 		});
 
 	cmd
@@ -68,7 +68,8 @@ export function registerUserCommands(parent, cli) {
 		});
 }
 
-export async function listUsers(dbPath, opts) {
+export async function listUsers(dbPath, opts, parentCli) {
+	const cli = parentCli || CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
 	const { auth } = await initDBWithAuth(dbPath);
 	const users = await auth.listUsers();
 
@@ -76,7 +77,6 @@ export async function listUsers(dbPath, opts) {
 		if (opts?.json) {
 			displayJSON([]);
 		} else {
-			const cli = CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
 			cli.info('No users found.');
 		}
 		return;
@@ -101,13 +101,13 @@ export async function listUsers(dbPath, opts) {
 	}
 }
 
-export async function userInfo(dbPath, username, opts) {
+export async function userInfo(dbPath, username, opts, parentCli) {
+	const cli = parentCli || CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
 	const { auth } = await initDBWithAuth(dbPath);
 	const users = await auth.listUsers();
 	const user = users.find(u => u.username === username);
 
 	if (!user) {
-		const cli = CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
 		cli.error(`User "${username}" not found.`);
 		return;
 	}

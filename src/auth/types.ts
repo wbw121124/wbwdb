@@ -157,7 +157,7 @@ export interface AuthContext {
 }
 
 export interface AuthOptions {
-	jwtSecret?: string;
+	jwtSecret: string;
 	jwtExpiresIn?: string;
 	jwtIssuer?: string;
 	sessionExpiresInMs?: number;

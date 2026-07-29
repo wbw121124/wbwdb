@@ -89,13 +89,8 @@ export async function startServer(dbPath, port, host, parentCli) {
 					const { sql, params } = body;
 					if (!sql) throw new Error('Missing "sql" in request body');
 
-					// 核心：注入 AuthContext 以支持 RLS (行级安全)
-					// 因为 db.query 是同步的，这里设置 context 后立即执行是线程安全的
-					db.getSQL().setAuthContext(authContext);
-					const result = db.query(sql, params);
-
-					// 执行完毕后清除 context，防止内存泄漏或影响后续无鉴权请求
-					db.getSQL().setAuthContext(null);
+					// Pass authContext per-request to avoid cross-request race condition
+					const result = db.query(sql, params, authContext);
 
 					sendJSON(res, 200, result);
 				}

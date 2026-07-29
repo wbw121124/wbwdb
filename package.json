@@ -13,6 +13,7 @@
 		"@typescript/native": "npm:typescript@^7.0.2",
 		"bcrypt": "^6.0.0",
 		"jsonwebtoken": "^9.0.3",
+		"quickjs-emscripten": "^0.32.0",
 		"uuid": "^14.0.1",
 		"wbw-cli-tools-lib": "^1.0.0"
 	},
@@ -31,7 +32,7 @@
 		"lint": "eslint src/",
 		"doc": "rimraf docs && typedoc",
 		"dev": "npm run doc && npm run build && npm run test",
-		"test": "node --experimental-strip-types test/demo.ts && node --experimental-strip-types test/auth-demo.ts && node test/cli-test.js",
+		"test": "node --experimental-strip-types test/test.ts",
 		"git-force-commit": "git add . && (git commit -m \"chore: release\" || echo.)",
 		"release": "npm run build && npm run doc && npm run git-force-commit && git push && npm publish",
 		"release:patch": "npm version patch --git-tag-version && npm run release",

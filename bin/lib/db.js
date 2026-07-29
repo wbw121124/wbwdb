@@ -1,5 +1,5 @@
 // bin/lib/db.js
-import { wbwdbManager } from '../../lib/index.js';
+import { wbwdbManager, hashApiKey } from '../../lib/index.js';
 import fs from 'node:fs/promises';
 
 /**
@@ -28,7 +28,9 @@ export async function initDBWithAuth(dbPath, authOptions = {}) {
 	// 初始化 Auth 模块
 	// 注意：Auth 模块依赖于 db.rootdir 已经设置好
 	if (!db.auth) {
-		await db.initAuth(authOptions);
+		// eslint-disable-next-line no-undef
+		const jwtSecret = authOptions.jwtSecret || process.env.WBWDB_JWT_SECRET || hashApiKey(dbPath);
+		await db.initAuth({ ...authOptions, jwtSecret });
 	}
 
 	return {

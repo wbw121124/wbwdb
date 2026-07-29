@@ -17,7 +17,7 @@ export function registerRoleCommands(parent, cli) {
 		.description('List all roles')
 		.action(async function () {
 			const opts = getRootOpts(this);
-			await listRoles(opts.db, opts);
+			await listRoles(opts.db, opts, cli);
 		});
 
 	cmd
@@ -91,8 +91,8 @@ async function getRoleList(auth) {
 	return [...roleMap.values()];
 }
 
-export async function listRoles(dbPath, opts) {
-	const cli = CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
+export async function listRoles(dbPath, opts, parentCli) {
+	const cli = parentCli || CliTools.create({ commandName: 'wbwdb', commandDescription: '' });
 	const { auth } = await initDBWithAuth(dbPath);
 	const roles = await getRoleList(auth);
 

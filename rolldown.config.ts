@@ -14,7 +14,7 @@ export default defineConfig({
 		},
 		minify: true,
 	},
-	external: ['bcrypt', 'jsonwebtoken'],
+	external: ['bcrypt', 'jsonwebtoken', 'quickjs-emscripten'],
 	plugins: [
 		dts()
 	],

@@ -5,7 +5,8 @@
 		"moduleResolution": "NodeNext",
 		"lib": [
 			"es2021",
-			"es2022"
+			"es2022",
+			"dom"
 		],
 		"rootDir": "src",
 		"outDir": "lib",
