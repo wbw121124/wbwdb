@@ -1,7 +1,6 @@
 // bin/lib/db.js
 import { wbwdbManager, hashApiKey } from '../../lib/index.js';
 import fs from 'node:fs/promises';
-import crypto from 'node:crypto';
 
 /**
  * 初始化基础数据库管理器
