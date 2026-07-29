@@ -19,6 +19,6 @@ export default tseslint.config(
 		},
 	},
 	{
-		ignores: ['lib/**', 'docs/**', 'node_modules/**', 'test/**'],
+		ignores: ['lib/**', 'docs/**', 'node_modules/**', 'test/**', 'script/**'],
 	},
 );
