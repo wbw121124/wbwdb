@@ -11,8 +11,12 @@ export async function verifyPassword(password: string, hash: string): Promise<bo
 	return bcrypt.compare(password, hash);
 }
 
-export function hashApiKey(key: string): string {
-	return crypto.createHash('sha256').update(key).digest('hex');
+export async function hashApiKey(key: string, saltRounds: number = SALT_ROUNDS): Promise<string> {
+	return bcrypt.hash(key, saltRounds);
+}
+
+export async function verifyApiKey(key: string, hash: string): Promise<boolean> {
+	return bcrypt.compare(key, hash);
 }
 
 export function generateApiKey(): string {
