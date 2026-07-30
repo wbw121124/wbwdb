@@ -419,8 +419,7 @@ export class wbwdbManager {
 };
 
 export * from './types.js';
-export { WBWDBSQL, Parser, SQLExecutor, TableStore } from './sql/index.js';
-export type { QueryResult, Row, SQLNode } from './sql/index.js';
+export * from './sql/index.js';
 export { Auth } from './auth/index.js';
 export { hashApiKey } from './auth/crypto.js';
 export type {

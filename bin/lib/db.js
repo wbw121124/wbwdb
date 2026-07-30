@@ -2,6 +2,8 @@
 import { wbwdbManager } from '../../lib/index.js';
 import fs from 'node:fs/promises';
 
+export { SQLHintEngine } from '../../lib/index.js';
+
 /**
  * 初始化基础数据库管理器
  * @param {string} dbPath - 数据库根路径

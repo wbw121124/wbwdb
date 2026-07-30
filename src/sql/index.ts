@@ -216,5 +216,6 @@ export class WBWDBSQL {
 
 export { Parser } from './parser.js';
 export { SQLExecutor, TableStore } from './executor.js';
+export { SQLHintEngine, type HintSuggestion, type HintContext } from './hint.js';
 export type { SQLNode } from './ast.js';
 export { ensureHookSandbox, hookSandboxReady };
