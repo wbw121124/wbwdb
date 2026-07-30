@@ -351,15 +351,19 @@ class DBSchema {
 		// 将 Map<string,string> 转换为 Map<string, DBFullType<any>>
 		const map = new Map<string, DBFullType<unknown>>();
 		for (const [key, value] of v.entries()) {
+			// [FIX] Support "String?" format for nullable columns
+			const isNullable = value.endsWith('?');
+			const typeName = isNullable ? value.slice(0, -1) : value;
+
 			// 需要根据字符串值找到对应的DBType
-			const dbType = dbtypes.get(value);
+			const dbType = dbtypes.get(typeName);
 			if (dbType) {
-				map.set(key, new DBFullType(dbType, false));
+				map.set(key, new DBFullType(dbType, isNullable));
 			} else {
 				// 处理未知类型，默认使用String
 				const stringType = dbtypes.get('String');
 				if (stringType) {
-					map.set(key, new DBFullType(stringType, false));
+					map.set(key, new DBFullType(stringType, isNullable));
 				}
 			}
 		}
@@ -551,7 +555,8 @@ class DBTable {
 		return this.rows.filter((v) => f(v));
 	}
 	sort(f: (a: DBRowWithID, b: DBRowWithID) => number): DBRowWithID[] {
-		return this.rows.sort((a, b) => f(a, b));
+		// [FIX] Create a copy to avoid mutating original array
+		return [...this.rows].sort((a, b) => f(a, b));
 	}
 }
 

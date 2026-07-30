@@ -15,7 +15,7 @@
 		"jsonwebtoken": "^9.0.3",
 		"quickjs-emscripten": "^0.32.0",
 		"uuid": "^14.0.1",
-		"wbw-cli-tools-lib": "^1.0.0"
+		"wbw-cli-tools-lib": "^1.3.0"
 	},
 	"bin": {
 		"wbwdb": "./bin/wbwdb-cli.js"

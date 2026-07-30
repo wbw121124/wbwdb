@@ -49,7 +49,10 @@ export class SessionManager {
 			expiresAt,
 		};
 		this.sessions.set(sessionId, payload);
-		this.save().catch(console.error); // Async save
+		// [FIX] Better async error handling
+		this.save().catch(err => {
+			console.error('Failed to save session:', err.message);
+		});
 		return {
 			user,
 			sessionId,
@@ -62,7 +65,9 @@ export class SessionManager {
 		if (!payload) return null;
 		if (new Date(payload.expiresAt) < new Date()) {
 			this.sessions.delete(sessionId);
-			this.save().catch(console.error);
+			this.save().catch(err => {
+				console.error('Failed to save session after expiry:', err.message);
+			});
 			return null;
 		}
 		return payload;
@@ -70,7 +75,11 @@ export class SessionManager {
 
 	destroy(sessionId: string): boolean {
 		const result = this.sessions.delete(sessionId);
-		if (result) this.save().catch(console.error);
+		if (result) {
+			this.save().catch(err => {
+				console.error('Failed to save session after destroy:', err.message);
+			});
+		}
 		return result;
 	}
 
@@ -82,7 +91,11 @@ export class SessionManager {
 				count++;
 			}
 		}
-		if (count > 0) this.save().catch(console.error);
+		if (count > 0) {
+			this.save().catch(err => {
+				console.error('Failed to save sessions after destroyAll:', err.message);
+			});
+		}
 		return count;
 	}
 
@@ -95,7 +108,11 @@ export class SessionManager {
 				count++;
 			}
 		}
-		if (count > 0) this.save().catch(console.error);
+		if (count > 0) {
+			this.save().catch(err => {
+				console.error('Failed to save sessions after clean:', err.message);
+			});
+		}
 		return count;
 	}
 

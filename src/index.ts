@@ -365,14 +365,7 @@ export class wbwdbManager {
 			this.listeners.set(key, set);
 		}
 		set.add(callback);
-		// Also register on wildcard key
-		const wildcardKey = `${event}:*`;
-		let wildcardSet = this.listeners.get(wildcardKey);
-		if (!wildcardSet) {
-			wildcardSet = new Set();
-			this.listeners.set(wildcardKey, wildcardSet);
-		}
-		wildcardSet.add(callback);
+		// [FIX] Don't auto-register to wildcard - avoid duplicate triggers
 	}
 
 	/**
@@ -398,19 +391,27 @@ export class wbwdbManager {
 		const wildcardKey = `${event}:*`;
 		const specific = this.listeners.get(specificKey);
 		const wildcard = this.listeners.get(wildcardKey);
+		// [FIX] Use Set to deduplicate - prevent same callback from firing twice
+		const called = new Set<(...args: unknown[]) => void>();
 		if (specific) {
 			for (const fn of specific) {
-				try { fn(...args); } catch (err) {
-					if (event.startsWith('before')) throw err;
-					console.error(`Event ${event} listener error:`, err);
+				if (!called.has(fn)) {
+					called.add(fn);
+					try { fn(...args); } catch (err) {
+						if (event.startsWith('before')) throw err;
+						console.error(`Event ${event} listener error:`, err);
+					}
 				}
 			}
 		}
 		if (wildcard) {
 			for (const fn of wildcard) {
-				try { fn(...args); } catch (err) {
-					if (event.startsWith('before')) throw err;
-					console.error(`Event ${event} listener error:`, err);
+				if (!called.has(fn)) {
+					called.add(fn);
+					try { fn(...args); } catch (err) {
+						if (event.startsWith('before')) throw err;
+						console.error(`Event ${event} listener error:`, err);
+					}
 				}
 			}
 		}

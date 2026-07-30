@@ -53,7 +53,10 @@ export class ApiKeyManager {
 		};
 
 		this.apiKeys.set(id, apiKey);
-		this.save().catch(console.error);
+		// [FIX] Better async error handling
+		this.save().catch(err => {
+			console.error('Failed to save API key:', err.message);
+		});
 
 		return { key: rawKey, apiKey };
 	}
@@ -87,7 +90,9 @@ export class ApiKeyManager {
 
 		apiKey.isActive = false;
 		this.apiKeys.set(keyId, apiKey);
-		this.save().catch(console.error);
+		this.save().catch(err => {
+			console.error('Failed to save API key after revoke:', err.message);
+		});
 		return true;
 	}
 
@@ -100,15 +105,21 @@ export class ApiKeyManager {
 				count++;
 			}
 		}
-		if (count > 0)
-			this.save().catch(console.error);
+		if (count > 0) {
+			this.save().catch(err => {
+				console.error('Failed to save API keys after revokeAll:', err.message);
+			});
+		}
 		return count;
 	}
 
 	delete(keyId: string): boolean {
 		const result = this.apiKeys.delete(keyId);
-		if (result)
-			this.save().catch(console.error);
+		if (result) {
+			this.save().catch(err => {
+				console.error('Failed to save API key after delete:', err.message);
+			});
+		}
 		return result;
 	}
 

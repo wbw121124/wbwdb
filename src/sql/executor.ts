@@ -253,10 +253,12 @@ export class SQLExecutor {
 			const out: Row = {};
 			for (const col of stmt.columns) {
 				if (col.expr.type === 'COLUMN_REF' && col.expr.star) {
-					// Expand * to all columns in row
+					// [FIX] Expand * to all columns in row (avoid duplicates)
 					for (const [k, v] of Object.entries(row)) {
-						if (!columns.includes(k)) columns.push(k);
-						out[k] = v;
+						if (!Object.prototype.hasOwnProperty.call(out, k)) {
+							if (!columns.includes(k)) columns.push(k);
+							out[k] = v;
+						}
 					}
 				} else {
 					const colName = col.alias || this.getColumnExprName(col.expr);
@@ -528,6 +530,13 @@ export class SQLExecutor {
 					row[colName] = this.evalExpr(rowExprs[i], {}, params);
 				}
 
+				// [FIX] NOT NULL constraint check
+				for (const [colName, colDef] of store.schema.entries()) {
+					if (colDef.notNull && row[colName] === null) {
+						throw new Error(`Column "${colName}" does not allow NULL values`);
+					}
+				}
+
 				// BEFORE INSERT hooks
 				this.runHooks(this.getHooks(store, 'INSERT', 'BEFORE'), row, stmt.table);
 
@@ -574,6 +583,13 @@ export class SQLExecutor {
 			const row: Row = { id: store.nextId() };
 			for (let i = 0; i < stmt.columns.length; i++) {
 				row[stmt.columns[i]] = selRow[stmt.columns[i]] ?? selRow[Object.keys(selRow)[i]];
+			}
+
+			// [FIX] NOT NULL constraint check
+			for (const [colName, colDef] of store.schema.entries()) {
+				if (colDef.notNull && row[colName] === null) {
+					throw new Error(`Column "${colName}" does not allow NULL values`);
+				}
 			}
 
 			// BEFORE INSERT hooks

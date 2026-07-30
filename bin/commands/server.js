@@ -23,8 +23,13 @@ export async function startServer(dbPath, port, host, parentCli) {
 		cli.spinnerSucceed('Database initialized.');
 
 		const server = http.createServer(async (req, res) => {
-			// CORS 设置 (方便前端调试)
-			res.setHeader('Access-Control-Allow-Origin', '*');
+			// CORS 设置 - 支持配置允许的来源
+			// eslint-disable-next-line no-undef
+			const allowedOrigins = process.env.WBWDB_CORS_ORIGINS?.split(',') || ['http://localhost:3000'];
+			const origin = req.headers.origin;
+			if (allowedOrigins.includes('*') || (origin && allowedOrigins.includes(origin))) {
+				res.setHeader('Access-Control-Allow-Origin', origin || '*');
+			}
 			res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
 			res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-API-Key');
 
@@ -89,11 +94,14 @@ export async function startServer(dbPath, port, host, parentCli) {
 					const { sql, params } = body;
 					if (!sql) throw new Error('Missing "sql" in request body');
 
-					// [FIX] Security: Prevent DDL statements via HTTP API
-					const trimmedSql = sql.trim().toUpperCase();
+					// [FIX] Security: Prevent DDL statements via HTTP API (check each statement)
+					const statements = sql.split(';').map(s => s.trim()).filter(s => s);
 					const dangerousKeywords = ['DROP ', 'CREATE ', 'ALTER ', 'TRUNCATE ', 'GRANT ', 'REVOKE '];
-					if (dangerousKeywords.some(kw => trimmedSql.startsWith(kw))) {
-						throw new Error('Forbidden: DDL statements are not allowed via HTTP API.');
+					for (const stmt of statements) {
+						const upperStmt = stmt.toUpperCase();
+						if (dangerousKeywords.some(kw => upperStmt.startsWith(kw))) {
+							throw new Error('Forbidden: DDL statements are not allowed via HTTP API.');
+						}
 					}
 
 					const result = db.query(sql, params, authContext);
@@ -133,11 +141,19 @@ export async function startServer(dbPath, port, host, parentCli) {
 	}
 }
 
-// 辅助函数：解析 Request Body
-function parseBody(req) {
+// 辅助函数：解析 Request Body (with size limit)
+function parseBody(req, maxSize = 1024 * 1024) {
 	return new Promise((resolve, reject) => {
 		let data = '';
-		req.on('data', chunk => data += chunk);
+		let totalSize = 0;
+		req.on('data', chunk => {
+			totalSize += chunk.length;
+			if (totalSize > maxSize) {
+				reject(new Error('Request body too large (max 1MB)'));
+				return;
+			}
+			data += chunk;
+		});
 		req.on('end', () => {
 			try {
 				resolve(data ? JSON.parse(data) : {});
