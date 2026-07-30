@@ -288,7 +288,7 @@ export async function shell(dbPath, parentCli) {
 			for (const e of suggestions) {
 				map.set(e.text, e)
 			}
-			for (const [u, e] of map) {
+			for (const [_u, e] of map) {
 				cli.print(`${e.text}(${e.type}):${e.description}`);
 			}
 			rl.prompt();

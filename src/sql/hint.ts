@@ -493,7 +493,7 @@ export class SQLHintEngine {
 				// Suggest columns from the current table context
 				const tableName = this.getTableContext(tokens);
 				if (tableName && this.tableColumns.has(tableName)) {
-					for (const col of this.tableColumns.get(tableName)!) {
+					for (const col of this.tableColumns.get(tableName) || []) {
 						const colType = this.tableColumnTypes.get(tableName)?.get(col);
 						suggestions.push({
 							text: col,
@@ -1021,7 +1021,7 @@ export class SQLHintEngine {
 								type: 'column' as const,
 								description: `${colType?.type || 'unknown'}${colType?.nullable ? ' (nullable)' : ''}`,
 							};
-						});
+						}) || [];
 				}
 				// If no table context, suggest from all tables
 				return this.getAllColumns()
